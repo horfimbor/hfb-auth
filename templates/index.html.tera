@@ -1,0 +1,7 @@
+<head>
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    it's alive
+</body>
