@@ -1,0 +1,7 @@
+<head>
+    <title>Horfimbor account</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    {{name}}
+</body>

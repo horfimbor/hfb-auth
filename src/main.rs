@@ -1,15 +1,16 @@
 mod controllers;
+mod model;
 
 #[macro_use]
 extern crate rocket;
 
-use crate::controllers::index;
+use model::MariadDb;
 use rocket::fs::{relative, FileServer};
 use rocket::http::Method;
 use rocket::response::content;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use rocket_dyn_templates::Template;
-use sqlx::{MySql, MySqlPool, Pool};
+use sqlx::MySqlPool;
 use std::env;
 
 #[rocket::main]
@@ -45,7 +46,7 @@ async fn main() {
 
     let _ = rocket::custom(figment)
         .manage(MariadDb::new(pool))
-        .mount("/", routes![index])
+        .mount("/", controllers::get_routes())
         .mount("/", FileServer::from(relative!("web")))
         .attach(cors)
         .attach(Template::fairing())
@@ -61,14 +62,4 @@ fn general_not_found() -> content::RawHtml<&'static str> {
         <p>Hmm... This is not the droïd you are looking for</p>
     "#,
     )
-}
-
-pub struct MariadDb {
-    pub db: Pool<MySql>,
-}
-
-impl MariadDb {
-    pub fn new(db: Pool<MySql>) -> MariadDb {
-        MariadDb { db }
-    }
 }

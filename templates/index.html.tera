@@ -1,7 +1,10 @@
 <head>
-    <title>{{ title }}</title>
+    <title>Horfimbor Authentification</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    it's alive
+    <form action="/login" method="post">
+        <input type="text" name="pseudo"/>
+        <input type="submit" />
+    </form>
 </body>
