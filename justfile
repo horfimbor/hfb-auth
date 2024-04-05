@@ -17,7 +17,6 @@ precommit:
     cargo fmt
     cargo clippy
 
-
 new-migration name:
     sqlx migrate add -r {{name}}
 

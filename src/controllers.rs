@@ -40,14 +40,14 @@ async fn login(
         })?,
     };
 
-    cookies.add_private((COOKIE_NAME, user.uuid().to_string()));
+    cookies.add((COOKIE_NAME, user.uuid().to_string()));
     Ok(Redirect::to(uri!(account())))
 }
 
 #[get("/account")]
 async fn account(cookies: &CookieJar<'_>, _maria_db: &State<MariadDb>) -> Template {
     let data = cookies
-        .get_private(COOKIE_NAME)
+        .get(COOKIE_NAME)
         .map_or("no cookie".to_string(), |crumb| crumb.value().to_string());
 
     Template::render(
