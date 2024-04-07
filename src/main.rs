@@ -32,11 +32,11 @@ async fn main() {
     }
 
     let mariadb_url = env::var("MARIADB_URL").expect("MARIADB_URL is not defined");
-    let auth_port = env::var("AUTH_PORT")
-        .expect("AUTH_PORT is not defined")
+    let auth_port = env::var("APP_PORT")
+        .expect("APP_PORT is not defined")
         .parse::<u16>()
-        .expect("AUTH_PORT cannot be parse in u16");
-    let auth_host = env::var("AUTH_HOST").expect("AUTH_HOST is not defined");
+        .expect("APP_PORT cannot be parse in u16");
+    let auth_host = env::var("APP_HOST").expect("APP_HOST is not defined");
 
     let pool = MySqlPool::connect_lazy(&mariadb_url).unwrap();
 
