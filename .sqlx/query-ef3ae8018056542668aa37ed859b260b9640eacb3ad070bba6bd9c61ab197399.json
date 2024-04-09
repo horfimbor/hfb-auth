@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "insert into token_one_time (application_id, account_id, token) values (?,?,?) ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "ef3ae8018056542668aa37ed859b260b9640eacb3ad070bba6bd9c61ab197399"
+}

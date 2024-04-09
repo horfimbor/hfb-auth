@@ -1,0 +1,11 @@
+<head>
+    <title>Horfimbor Authorization</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h2>{{application_name}}</H2>
+    <form action="/authorize" method="post">
+        <input type="hidden" name="redirect" value="{{redirect}}" />
+        <input type="submit" value="accepted"/>
+    </form>
+</body>

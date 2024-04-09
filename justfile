@@ -16,18 +16,14 @@ watch: sqlx-up
 precommit:
     cargo fmt
     cargo clippy
+    cargo sqlx prepare
 
 new-migration name:
     sqlx migrate add -r {{name}}
 
 [private]
-bdd-up:
-    docker compose up -d
-
-[private]
 sqlx-up:
     sqlx database create
-    sqlx migrate run
 
 [private]
 sqlx-down:

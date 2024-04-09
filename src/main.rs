@@ -4,8 +4,8 @@ mod model;
 #[macro_use]
 extern crate rocket;
 
+use crate::model::MariadDb;
 use clap::Parser;
-use model::MariadDb;
 use rocket::fs::{relative, FileServer};
 use rocket::http::Method;
 use rocket::response::content;
