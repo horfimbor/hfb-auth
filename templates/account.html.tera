@@ -4,4 +4,6 @@
 </head>
 <body>
     {{name}}
+
+    <a href="/logout">Tchao</a>
 </body>

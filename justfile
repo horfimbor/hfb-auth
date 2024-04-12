@@ -2,11 +2,10 @@ default: watch
 
 startup:
     docker compose up -d
+    sqlx database create
 
-cleanup:
-    docker compose down
-
-reset-db: cleanup startup
+reset-db: startup
+    sqlx database reset
 
 watch: sqlx-up
     export $(grep -v '^#' .env | xargs) && \

@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "Select uuid, name, host from application where host = ?",
+  "query": "Select uuid, name, host, app_key from application where host = ?",
   "describe": {
     "columns": [
       {
@@ -32,6 +32,16 @@
           "char_set": 224,
           "max_size": 1020
         }
+      },
+      {
+        "ordinal": 3,
+        "name": "app_key",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "char_set": 224,
+          "max_size": 1020
+        }
       }
     ],
     "parameters": {
@@ -40,8 +50,9 @@
     "nullable": [
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "878ea49fd85072b78f1641b3af6bfd0023233b6ebbf9f1263a4ad5a9e6652022"
+  "hash": "599aff892394653d31236828d733863299c394b2493236de69f8831f79830f0c"
 }

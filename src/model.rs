@@ -20,14 +20,37 @@ pub struct Application {
     uuid: String,
     name: String,
     host: String,
+    app_key: String,
 }
 
 impl Application {
-    pub fn uuid(&self) -> Uuid {
-        self.uuid.parse().unwrap()
+    pub fn uuid(&self) -> &str {
+        &self.uuid
     }
     pub fn name(&self) -> &str {
         &self.name
+    }
+    pub fn host(&self) -> &str {
+        &self.host
+    }
+    pub fn app_key(&self) -> &str {
+        &self.app_key
+    }
+}
+
+#[derive(Debug)]
+pub struct OneTimeToken {
+    application_id: String,
+    account_id: String,
+    token: String,
+}
+
+impl OneTimeToken {
+    pub fn application_id(&self) -> &str {
+        &self.application_id
+    }
+    pub fn account_id(&self) -> &str {
+        &self.account_id
     }
 }
 
@@ -78,11 +101,24 @@ impl MariadDb {
             .ok_or(anyhow!("user created not found"))
     }
 
-    pub async fn get_application(&self, host: &str) -> Result<Option<Application>> {
+    pub async fn get_application_by_host(&self, host: &str) -> Result<Option<Application>> {
         let application = sqlx::query_as!(
             Application,
-            "Select uuid, name, host from application where host = ?",
+            "Select uuid, name, host, app_key from application where host = ?",
             host
+        )
+        .fetch_all(&self.db)
+        .await?;
+
+        dbg!(&application);
+
+        Ok(application.into_iter().next())
+    }
+    pub async fn get_application(&self, id: &str) -> Result<Option<Application>> {
+        let application = sqlx::query_as!(
+            Application,
+            "Select uuid, name, host, app_key from application where uuid = ?",
+            id
         )
         .fetch_all(&self.db)
         .await?;
@@ -109,5 +145,19 @@ impl MariadDb {
         .await?;
 
         Ok(id)
+    }
+
+    pub async fn get_one_time_token(&self, token: &str) -> Result<Option<OneTimeToken>> {
+        let token = sqlx::query_as!(
+            OneTimeToken,
+            "Select application_id, account_id, token from token_one_time where token = ?",
+            token
+        )
+        .fetch_all(&self.db)
+        .await?;
+
+        dbg!(&token);
+
+        Ok(token.into_iter().next())
     }
 }
