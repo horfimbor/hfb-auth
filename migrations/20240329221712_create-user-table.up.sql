@@ -1,6 +1,6 @@
 create table account
 (
-    uuid   uuid default uuid() not null,
+    uuid   varchar(36) default uuid() not null,
     pseudo varchar(32)         not null,
     role   text                null,
     constraint account_pk

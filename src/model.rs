@@ -1,8 +1,9 @@
 use uuid::Uuid;
 
 use anyhow::{anyhow, Result};
-use sqlx::{MySql, Pool};
+use sqlx::{FromRow, MySql, Pool};
 
+#[derive(FromRow)]
 pub struct Account {
     uuid: String,
     pseudo: String,
@@ -15,7 +16,7 @@ impl Account {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromRow)]
 pub struct Application {
     uuid: String,
     name: String,
@@ -38,7 +39,7 @@ impl Application {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromRow)]
 pub struct OneTimeToken {
     application_id: String,
     account_id: String,
@@ -64,25 +65,21 @@ impl MariadDb {
     }
 
     pub async fn get_user(&self, pseudo: &str) -> Result<Option<Account>> {
-        let user = sqlx::query_as!(
-            Account,
-            "SELECT uuid, pseudo, role FROM account WHERE pseudo = ?",
-            pseudo
-        )
-        .fetch_all(&self.db)
-        .await?;
+        let user =
+            sqlx::query_as::<_, Account>("SELECT uuid, pseudo, role FROM account WHERE pseudo = ?")
+                .bind(pseudo)
+                .fetch_all(&self.db)
+                .await?;
 
         Ok(user.into_iter().next())
     }
 
     pub async fn get_user_by_id(&self, uuid: &str) -> Result<Option<Account>> {
-        let user = sqlx::query_as!(
-            Account,
-            "SELECT uuid, pseudo, role FROM account WHERE uuid = ?",
-            uuid
-        )
-        .fetch_all(&self.db)
-        .await?;
+        let user =
+            sqlx::query_as::<_, Account>("SELECT uuid, pseudo, role FROM account WHERE uuid = ?")
+                .bind(uuid)
+                .fetch_all(&self.db)
+                .await?;
 
         Ok(user.into_iter().next())
     }
@@ -102,11 +99,10 @@ impl MariadDb {
     }
 
     pub async fn get_application_by_host(&self, host: &str) -> Result<Option<Application>> {
-        let application = sqlx::query_as!(
-            Application,
+        let application = sqlx::query_as::<_, Application>(
             "Select uuid, name, host, app_key from application where host = ?",
-            host
         )
+        .bind(host)
         .fetch_all(&self.db)
         .await?;
 
@@ -115,11 +111,10 @@ impl MariadDb {
         Ok(application.into_iter().next())
     }
     pub async fn get_application(&self, id: &str) -> Result<Option<Application>> {
-        let application = sqlx::query_as!(
-            Application,
+        let application = sqlx::query_as::<_, Application>(
             "Select uuid, name, host, app_key from application where uuid = ?",
-            id
         )
+        .bind(id)
         .fetch_all(&self.db)
         .await?;
 
@@ -148,11 +143,10 @@ impl MariadDb {
     }
 
     pub async fn get_one_time_token(&self, token: &str) -> Result<Option<OneTimeToken>> {
-        let token = sqlx::query_as!(
-            OneTimeToken,
+        let token = sqlx::query_as::<_, OneTimeToken>(
             "Select application_id, account_id, token from token_one_time where token = ?",
-            token
         )
+        .bind(token)
         .fetch_all(&self.db)
         .await?;
 

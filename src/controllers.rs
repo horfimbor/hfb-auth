@@ -104,7 +104,10 @@ async fn authorize(
     let application = maria_db
         .get_application_by_host(redirect)
         .await
-        .map_err(|_| Status::InternalServerError)?
+        .map_err(|e| {
+            dbg!(e);
+            Status::InternalServerError
+        })?
         .ok_or(Status::NotFound)?;
 
     let data = cookies.get(COOKIE_NAME);

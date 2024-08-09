@@ -1,7 +1,7 @@
 
 create table application
 (
-    uuid uuid default uuid() not null,
+    uuid varchar(36) default uuid() not null,
     name varchar(255)               not null,
     host varchar(255)               not null,
     app_key varchar(255)            not null,

@@ -12,7 +12,7 @@ dotenvy = "0.15.7"
 jsonwebtoken = "9.3.0"
 rocket ={ version = "0.5.0" }
 rocket_cors = "0.6.0"
-sqlx = { version = "0.7.4", features = [ "runtime-tokio", "tls-rustls", "mysql", "migrate" ] }
+sqlx = { version = "0.8.0", features = [ "runtime-tokio-rustls", "mysql", "migrate" ] }
 uuid = { version = "1.8.0", features = ["v4"] }
 serde = "1.0.197"
 
@@ -25,3 +25,6 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 unwrap_used = "warn"
+
+[profile.dev.package.sqlx-macros]
+opt-level = 3
