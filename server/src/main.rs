@@ -47,7 +47,7 @@ async fn main() {
     let figment = rocket::Config::figment()
         .merge(("address", "0.0.0.0"))
         .merge(("port", auth_port))
-        .merge(("template_dir", "templates"));
+        .merge(("template_dir", "server/templates"));
 
     let allowed_origins = AllowedOrigins::some_exact(&[auth_host]);
 

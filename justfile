@@ -1,9 +1,7 @@
-default: watch
-
 set shell := ["bash", "-uc"]
 set dotenv-load
 
-start:
+startup:
     docker compose up -d
     sleep 5
     sqlx database create
@@ -11,13 +9,13 @@ start:
 stop:
     docker compose down
 
-reset-db: start
+reset-db: startup
     sqlx database reset
 
-watch: sqlx-up
+watch-server: sqlx-up
     export $(grep -v '^#' .env | xargs) && \
-            cargo watch -w src -w templates -w web  \
-            -x "run"
+            cargo watch -w server  \
+            -x "run -p hfb-auth-server"
 
 precommit:
     cargo fmt
