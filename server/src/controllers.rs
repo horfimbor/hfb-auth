@@ -1,4 +1,8 @@
 use crate::model::MariadDb;
+use crate::AuthUserRepository;
+use hfb_auth_shared::user::AuthUserCommand;
+use hfb_auth_shared::AUTH_USER_STREAM;
+use horfimbor_eventsource::model_key::ModelKey;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use rocket::form::Form;
 use rocket::http::{Cookie, CookieJar, SameSite, Status};
@@ -7,15 +11,18 @@ use rocket::{Route, State};
 use rocket_dyn_templates::{context, Template};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
+use uuid::Uuid;
 
 pub fn get_routes() -> Vec<Route> {
     routes![
+        authorize,
+        authorize_form,
         index,
         login,
         logout,
-        authorize,
-        authorize_form,
-        single_use_token
+        single_use_token,
+        register,
+        register_form,
     ]
 }
 
@@ -84,6 +91,62 @@ async fn login(
     }
 
     Ok(Redirect::to(uri!(index)))
+}
+
+#[get("/register")]
+async fn register(cookies: &CookieJar<'_>) -> Template {
+    let _data = cookies.get(COOKIE_NAME);
+    Template::render(
+        "register",
+        context! {
+            redirect: "https://aedius.fr"
+        },
+    )
+}
+
+#[derive(FromForm, Debug)]
+struct Register<'r> {
+    email: &'r str,
+    pseudo: &'r str,
+    password: &'r str,
+    password_check: &'r str,
+    redirect: &'r str,
+}
+
+#[post("/register", data = "<register>")]
+async fn register_form(
+    state_repository: &State<AuthUserRepository>,
+    register: Form<Register<'_>>,
+    cookies: &CookieJar<'_>,
+) -> Result<Redirect, Status> {
+    let _data = cookies.get(COOKIE_NAME);
+
+    dbg!(&register);
+
+    let key = ModelKey::new(
+        AUTH_USER_STREAM,
+        Uuid::new_v5(&Uuid::NAMESPACE_X500, register.email.as_ref()),
+    );
+
+    if register.password != register.password_check {
+        todo!("handle password diff");
+    }
+
+    state_repository
+        .add_command(
+            &key,
+            AuthUserCommand::Create {
+                pseudo: register.pseudo.to_string(),
+                password_hash: register.password.to_string(), // FIXME
+            },
+            None,
+        )
+        .await
+        .unwrap();
+
+    dbg!(key);
+
+    todo!("BOO");
 }
 
 #[get("/logout")]

@@ -1,11 +1,14 @@
 mod controllers;
 mod model;
+mod user;
 
 #[macro_use]
 extern crate rocket;
 
 use crate::model::MariadDb;
+use anyhow::Context;
 use clap::Parser;
+use eventstore::Client;
 use rocket::fs::{relative, FileServer};
 use rocket::http::Method;
 use rocket::response::content;
@@ -23,26 +26,51 @@ struct Args {
     real_env: bool,
 }
 
+use hfb_auth_shared::user::AuthUserState;
+use horfimbor_eventsource::cache_db::redis::StateDb;
+use horfimbor_eventsource::repository::{Repository, StateRepository};
+
+type AuthUserStateCache = StateDb<AuthUserState>;
+type AuthUserRepository = StateRepository<AuthUserState, AuthUserStateCache>;
+
 #[rocket::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     if !args.real_env {
-        dotenvy::dotenv().expect("cannot get env");
+        dotenvy::dotenv().context("cannot get env")?;
     }
 
-    let mariadb_url = env::var("MARIADB_URL").expect("MARIADB_URL is not defined");
+    let mariadb_url = env::var("MARIADB_URL").context("MARIADB_URL is not defined")?;
+
+    let eventstore_uri = env::var("EVENTSTORE_URI")
+        .context("fail to get EVENTSTORE_URI env var")?
+        .parse()
+        .context("fail to parse the settings")?;
+
+    let redis_client =
+        redis::Client::open(env::var("REDIS_URI").context("fail to get REDIS_URI env var")?)?;
+
+    let event_store_db = Client::new(eventstore_uri).context("fail to connect to eventstore db")?;
+
+    let repo_state = AuthUserRepository::new(
+        event_store_db.clone(),
+        AuthUserStateCache::new(redis_client.clone()),
+    );
+
     let auth_port = env::var("APP_PORT")
-        .expect("APP_PORT is not defined")
+        .context("APP_PORT is not defined")?
         .parse::<u16>()
-        .expect("APP_PORT cannot be parse in u16");
-    let auth_host = env::var("APP_HOST").expect("APP_HOST is not defined");
+        .context("APP_PORT cannot be parse in u16")?;
+    let auth_host = env::var("APP_HOST").context("APP_HOST is not defined")?;
 
-    let pool = MySqlPool::connect_lazy(&mariadb_url).unwrap();
+    let pool = MySqlPool::connect_lazy(&mariadb_url).context("cannot create pool")?;
 
-    let m = Migrator::new(Path::new("./migrations")).await.unwrap();
+    let m = Migrator::new(Path::new("./migrations"))
+        .await
+        .context("cannot create migration")?;
 
-    m.run(&pool).await.unwrap();
+    m.run(&pool).await.context("cannot run migrations")?;
 
     let figment = rocket::Config::figment()
         .merge(("address", "0.0.0.0"))
@@ -62,9 +90,10 @@ async fn main() {
         ..Default::default()
     }
     .to_cors()
-    .unwrap();
+    .context("cannot create cors")?;
 
     let _ = rocket::custom(figment)
+        .manage(repo_state)
         .manage(MariadDb::new(pool))
         .mount("/", controllers::get_routes())
         .mount("/", FileServer::from(relative!("web")))
@@ -73,6 +102,8 @@ async fn main() {
         .register("/", catchers![general_not_found])
         .launch()
         .await;
+
+    Ok(())
 }
 
 #[catch(404)]

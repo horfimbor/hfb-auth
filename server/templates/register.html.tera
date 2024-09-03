@@ -1,0 +1,22 @@
+<head>
+    <title>Horfimbor Authentification</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <form action="/register" method="post">
+        <label> email
+            <input type="text" name="email"/>
+        </label>
+        <label> pseudo
+            <input type="text" name="pseudo"/>
+        </label>
+        <label> pseudo
+            <input type="password" name="password"/>
+        </label>
+        <label> password_check
+            <input type="password" name="password_check"/>
+        </label>
+        <input type="hidden" name="redirect" value="{{redirect}}" />
+        <input type="submit" />
+    </form>
+</body>

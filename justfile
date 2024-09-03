@@ -14,7 +14,7 @@ reset-db: startup
 
 watch-server: sqlx-up
     export $(grep -v '^#' .env | xargs) && \
-            cargo watch -w server  \
+            cargo watch -w server -w shared  \
             -x "run -p hfb-auth-server"
 
 precommit:

@@ -3,7 +3,10 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <p>
     {{name}}
-
+    </p>
+    <p>
     <a href="/logout">Tchao</a>
+    </p>
 </body>
