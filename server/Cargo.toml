@@ -19,6 +19,7 @@ uuid = { version = "1.8.0", features = ["v4", "v5"] }
 serde = "1.0.197"
 hfb-auth-shared= {path = "../shared", features = ["server"]}
 horfimbor-eventsource = {workspace = true}
+argon2 = "0.5.3"
 
 [dependencies.rocket_dyn_templates]
 version = "0.2.0"

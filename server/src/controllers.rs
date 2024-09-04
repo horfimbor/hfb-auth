@@ -1,8 +1,13 @@
 use crate::model::MariadDb;
 use crate::AuthUserRepository;
+use argon2::{
+    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    Argon2,
+};
 use hfb_auth_shared::user::AuthUserCommand;
 use hfb_auth_shared::AUTH_USER_STREAM;
 use horfimbor_eventsource::model_key::ModelKey;
+use horfimbor_eventsource::repository::Repository;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use rocket::form::Form;
 use rocket::http::{Cookie, CookieJar, SameSite, Status};
@@ -52,7 +57,8 @@ fn render_login(redirect: &str) -> Template {
 
 #[derive(FromForm, Debug)]
 struct Login<'r> {
-    pseudo: &'r str,
+    email: &'r str,
+    password: &'r str,
     redirect: &'r str,
 }
 
@@ -61,23 +67,40 @@ const COOKIE_NAME: &str = "RSESSID";
 #[post("/login", data = "<login>")]
 async fn login(
     login: Form<Login<'_>>,
-    maria_db: &State<MariadDb>,
+    state_repository: &State<AuthUserRepository>,
     cookies: &CookieJar<'_>,
 ) -> Result<Redirect, Status> {
-    let user = maria_db.get_user(login.pseudo).await.map_err(|e| {
+    let key = get_model_key(login.email);
+
+    let model = state_repository.get_model(&key).await.map_err(|e| {
         dbg!(e);
         Status::InternalServerError
     })?;
 
-    let user = match user {
-        Some(u) => u,
-        None => maria_db.create_user(login.pseudo).await.map_err(|e| {
-            dbg!(e);
-            Status::InternalServerError
-        })?,
+    let user = model.state();
+
+    let Some(password_hash) = user.password_hash() else {
+        dbg!("no password");
+        return Err(Status::InternalServerError);
     };
 
-    let mut cookie = Cookie::new(COOKIE_NAME, user.uuid().to_string());
+    let parsed_hash = PasswordHash::new(&password_hash).map_err(|e| {
+        dbg!(e);
+        Status::InternalServerError
+    })?;
+    assert!(Argon2::default()
+        .verify_password(login.password.as_ref(), &parsed_hash)
+        .is_ok());
+
+    state_repository
+        .add_command(&key, AuthUserCommand::Login, None)
+        .await
+        .map_err(|e| {
+            dbg!(e);
+            Status::InternalServerError
+        })?;
+
+    let mut cookie = Cookie::new(COOKIE_NAME, key.format());
     cookie.set_same_site(Some(SameSite::Lax));
 
     cookies.add(cookie);
@@ -99,7 +122,7 @@ async fn register(cookies: &CookieJar<'_>) -> Template {
     Template::render(
         "register",
         context! {
-            redirect: "https://aedius.fr"
+            redirect: ""
         },
     )
 }
@@ -113,6 +136,13 @@ struct Register<'r> {
     redirect: &'r str,
 }
 
+fn get_model_key(email: &str) -> ModelKey {
+    ModelKey::new(
+        AUTH_USER_STREAM,
+        Uuid::new_v5(&Uuid::NAMESPACE_X500, email.as_ref()),
+    )
+}
+
 #[post("/register", data = "<register>")]
 async fn register_form(
     state_repository: &State<AuthUserRepository>,
@@ -121,32 +151,37 @@ async fn register_form(
 ) -> Result<Redirect, Status> {
     let _data = cookies.get(COOKIE_NAME);
 
-    dbg!(&register);
-
-    let key = ModelKey::new(
-        AUTH_USER_STREAM,
-        Uuid::new_v5(&Uuid::NAMESPACE_X500, register.email.as_ref()),
-    );
+    let key = get_model_key(register.email);
 
     if register.password != register.password_check {
         todo!("handle password diff");
     }
+    let salt = SaltString::generate(&mut OsRng);
+    let argon2 = Argon2::default();
+    let password_hash = argon2
+        .hash_password(register.password.as_ref(), &salt)
+        .map_err(|e| {
+            dbg!(e);
+            Status::InternalServerError
+        })?
+        .to_string();
 
     state_repository
         .add_command(
             &key,
             AuthUserCommand::Create {
                 pseudo: register.pseudo.to_string(),
-                password_hash: register.password.to_string(), // FIXME
+                password_hash,
             },
             None,
         )
         .await
-        .unwrap();
+        .map_err(|e| {
+            dbg!(e);
+            Status::InternalServerError
+        })?;
 
-    dbg!(key);
-
-    todo!("BOO");
+    Ok(Redirect::to(uri!(index)))
 }
 
 #[get("/logout")]

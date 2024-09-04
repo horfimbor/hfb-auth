@@ -62,7 +62,7 @@ pub enum AuthUserEvent {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Default, Eq)]
 pub struct AuthUserState {
     pseudo: String,
-    password_hash: String,
+    password_hash: Option<String>,
     password_change: DateTime<Utc>,
     created_at: DateTime<Utc>,
     last_login: Option<DateTime<Utc>>,
@@ -89,7 +89,7 @@ impl AuthUserState {
                 password_hash,
                 date,
             } => {
-                self.password_hash = password_hash.clone();
+                self.password_hash = Some(password_hash.clone());
                 self.password_change = date.clone();
             }
             PrvAuthUserEvent::LoggedIn(date) => {
@@ -105,6 +105,26 @@ impl AuthUserState {
             PubAuthEvent::AccountCreated { .. } => {}
             PubAuthEvent::AccountDeleted => {}
         }
+    }
+
+    pub fn pseudo(&self) -> &str {
+        &self.pseudo
+    }
+
+    pub fn password_hash(&self) -> &Option<String> {
+        &self.password_hash
+    }
+
+    pub fn password_change(&self) -> DateTime<Utc> {
+        self.password_change
+    }
+
+    pub fn created_at(&self) -> DateTime<Utc> {
+        self.created_at
+    }
+
+    pub fn last_login(&self) -> Option<DateTime<Utc>> {
+        self.last_login
     }
 }
 
@@ -146,9 +166,9 @@ impl State for AuthUserState {
             AuthUserCommand::ChangePassword { .. } => {
                 todo!()
             }
-            AuthUserCommand::Login => {
-                todo!()
-            }
+            AuthUserCommand::Login => Ok(vec![AuthUserEvent::Private(PrvAuthUserEvent::LoggedIn(
+                Utc::now(),
+            ))]),
         }
     }
 }

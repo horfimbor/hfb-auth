@@ -10,10 +10,10 @@
         <label> pseudo
             <input type="text" name="pseudo"/>
         </label>
-        <label> pseudo
+        <label> password
             <input type="password" name="password"/>
         </label>
-        <label> password_check
+        <label> verification
             <input type="password" name="password_check"/>
         </label>
         <input type="hidden" name="redirect" value="{{redirect}}" />
