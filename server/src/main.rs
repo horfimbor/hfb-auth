@@ -24,10 +24,14 @@ use std::path::Path;
 struct Args {
     #[arg(short, long, default_value_t = false)]
     real_env: bool,
+
+    #[arg(short, long)]
+    add_admin: Option<String>,
 }
 
-use hfb_auth_shared::user::AuthUserState;
+use hfb_auth_shared::user::{AuthUserCommand, AuthUserState, UserRole};
 use horfimbor_eventsource::cache_db::redis::StateDb;
+use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::{Repository, StateRepository};
 
 type AuthUserStateCache = StateDb<AuthUserState>;
@@ -35,7 +39,7 @@ type AuthUserRepository = StateRepository<AuthUserState, AuthUserStateCache>;
 
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
+    let args: Args = Args::parse();
 
     if !args.real_env {
         dotenvy::dotenv().context("cannot get env")?;
@@ -53,10 +57,25 @@ async fn main() -> anyhow::Result<()> {
 
     let event_store_db = Client::new(eventstore_uri).context("fail to connect to eventstore db")?;
 
-    let repo_state = AuthUserRepository::new(
+    let state_repository = AuthUserRepository::new(
         event_store_db.clone(),
         AuthUserStateCache::new(redis_client.clone()),
     );
+
+    if let Some(new_admin) = args.add_admin {
+        let key_string = new_admin.as_str();
+        let key: ModelKey =
+            <&str as TryInto<ModelKey>>::try_into(key_string.try_into().context("cannot convert")?)
+                .context("cannot convert 2")?;
+
+        let _ = state_repository
+            .add_command(
+                &key,
+                AuthUserCommand::ChangeRole(Some(UserRole::Admin)),
+                None,
+            )
+            .await;
+    }
 
     let auth_port = env::var("APP_PORT")
         .context("APP_PORT is not defined")?
@@ -93,7 +112,7 @@ async fn main() -> anyhow::Result<()> {
     .context("cannot create cors")?;
 
     let _ = rocket::custom(figment)
-        .manage(repo_state)
+        .manage(state_repository)
         .manage(MariadDb::new(pool))
         .mount("/", controllers::get_routes())
         .mount("/", FileServer::from(relative!("web")))

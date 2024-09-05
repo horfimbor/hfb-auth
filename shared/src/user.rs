@@ -13,6 +13,11 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum UserRole {
+    Admin,
+}
+
 #[cfg_attr(feature = "server", derive(Command))]
 #[cfg_attr(feature = "server", state(AUTH_USER_EVENT))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -25,6 +30,7 @@ pub enum AuthUserCommand {
         password_hash: String,
     },
     Login,
+    ChangeRole(Option<UserRole>),
 }
 
 #[derive(Error, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -33,6 +39,8 @@ pub enum UserError {
     LoginFail,
     #[error("An account already exists")]
     AlreadyExists,
+    #[error("User has already the role")]
+    SameRole,
 }
 
 #[cfg_attr(feature = "server", derive(Event))]
@@ -47,6 +55,7 @@ pub enum PrvAuthUserEvent {
         date: DateTime<Utc>,
     },
     LoggedIn(DateTime<Utc>),
+    ChangeRole(Option<UserRole>),
 }
 
 #[cfg_attr(feature = "server", derive(Event))]
@@ -66,6 +75,7 @@ pub struct AuthUserState {
     password_change: DateTime<Utc>,
     created_at: DateTime<Utc>,
     last_login: Option<DateTime<Utc>>,
+    role: Option<UserRole>,
 }
 
 impl AuthUserState {
@@ -95,6 +105,7 @@ impl AuthUserState {
             PrvAuthUserEvent::LoggedIn(date) => {
                 self.last_login = Some(date.clone());
             }
+            PrvAuthUserEvent::ChangeRole(role) => self.role = role.clone(),
         }
     }
     fn play_public_event(&mut self, event: &PubAuthEvent) {
@@ -169,6 +180,15 @@ impl State for AuthUserState {
             AuthUserCommand::Login => Ok(vec![AuthUserEvent::Private(PrvAuthUserEvent::LoggedIn(
                 Utc::now(),
             ))]),
+            AuthUserCommand::ChangeRole(role) => {
+                if role == self.role {
+                    return Err(UserError::SameRole);
+                }
+
+                Ok(vec![AuthUserEvent::Private(PrvAuthUserEvent::ChangeRole(
+                    role,
+                ))])
+            }
         }
     }
 }
