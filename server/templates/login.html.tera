@@ -1,0 +1,18 @@
+{% extends "base" %}
+{% block title %}login{% endblock title %}
+
+{% block content %}
+    <form action="/login" method="post">
+        <label> email
+            <input type="text" name="email"/>
+        </label>
+        <label> password
+            <input type="password" name="password"/>
+        </label>
+        <input type="hidden" name="redirect" value="{{redirect}}" />
+        <input type="submit" />
+    </form>
+    <p>
+        <a href="/register">Create an account</a>
+    </p>
+{% endblock content %}

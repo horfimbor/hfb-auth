@@ -1,24 +1,40 @@
-
 * {
-    padding: 0;
-    margin: 0;
+    margin:0;
+    padding:0;
 }
 
-body{
-    width: 100%;
-    height: 100%;
-    display: flex;
+
+body {
+    display: grid;
+    grid-template-columns: 200px 200px auto 200px 200px;
+    grid-template-rows: 200px auto 200px;
+    grid-template-areas:
+        "menu . top top top"
+        "menu content content content message"
+        "menu bottom bottom bottom message";
+    gap : 0;
+    justify-items: center;
     align-items: center;
-    justify-content: center;
-    background-color: darkslategrey;
-}
-
-form{
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    align-content: stretch;
 
 }
-input{
-    flex-grow: 1;
+
+.top {
+    grid-area: top;
+}
+
+.menu {
+    grid-area: menu;
+}
+
+.message {
+    grid-area: message;
+}
+
+.bottom {
+    grid-area: bottom;
+}
+
+.content {
+    grid-area: content;
 }

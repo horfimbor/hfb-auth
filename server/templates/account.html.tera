@@ -1,12 +1,11 @@
-<head>
-    <title>Horfimbor account</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <p>
+{% extends "base" %}
+{% block title %}account{% endblock title %}
+
+{% block content %}
+<p>
     {{name}}
-    </p>
-    <p>
+</p>
+<p>
     <a href="/logout">Tchao</a>
-    </p>
-</body>
+</p>
+{% endblock content %}

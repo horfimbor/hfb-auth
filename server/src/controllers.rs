@@ -48,7 +48,7 @@ async fn index(cookies: &CookieJar<'_>) -> Template {
 fn render_login(redirect: &str) -> Template {
     // todo generate csrf
     Template::render(
-        "index",
+        "login",
         context! {
             redirect: redirect
         },
