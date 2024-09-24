@@ -2,20 +2,28 @@
 {% block title %}register{% endblock title %}
 
 {% block content %}
+<h2>Sign up</h2>
 <form action="/register" method="post">
-    <label> email
-        <input type="text" name="email"/>
-    </label>
-    <label> pseudo
-        <input type="text" name="pseudo"/>
-    </label>
-    <label> password
-        <input type="password" name="password"/>
-    </label>
-    <label> verification
-        <input type="password" name="password_check"/>
-    </label>
     <input type="hidden" name="redirect" value="{{redirect}}"/>
-    <input type="submit"/>
+    <div class="inputBox">
+        <input type="text" required name="email" /> <i>Identifier</i>
+    </div>
+    <div class="inputBox">
+        <input type="text" required name="pseudo" /> <i>Pseudonym</i>
+    </div>
+
+    <div class="inputBox">
+        <input type="password" required name="password" /> <i>Password</i>
+    </div>
+    <div class="inputBox">
+        <input type="password" required name="password_check" /> <i>Password check</i>
+    </div>
+    <div class="inputBox">
+        <input type="submit" value="Register">
+    </div>
+    <div class="links">
+        <a href="#"></a>
+        <a href="/">Sign in</a>
+    </div>
 </form>
 {% endblock content %}

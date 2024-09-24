@@ -7,10 +7,17 @@
     {% endblock head %}
 </head>
 <body>
-    <div class="top">{% block top %}{% endblock %}</div>
-    <div class="menu">{% block menu %}{% endblock %}</div>
-    <div class="message">{% block message %}{% endblock %}</div>
-    <div class="bottom">{% block bottom %}{% endblock %}</div>
-    <div class="content">{% block content %}{% endblock %}</div>
+
+<section>
+    {% for i in range(end=200) %}
+    <span></span>
+    {% endfor %}
+
+    <div class="container">
+        <div class="content">
+            {% block content %} {% endblock %}
+        </div>
+    </div>
+</section>
 </body>
 </html>

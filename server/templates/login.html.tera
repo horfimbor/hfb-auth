@@ -2,17 +2,21 @@
 {% block title %}login{% endblock title %}
 
 {% block content %}
-    <form action="/login" method="post">
-        <label> email
-            <input type="text" name="email"/>
-        </label>
-        <label> password
-            <input type="password" name="password"/>
-        </label>
-        <input type="hidden" name="redirect" value="{{redirect}}" />
-        <input type="submit" />
-    </form>
-    <p>
-        <a href="/register">Create an account</a>
-    </p>
+<h2>Sign In</h2>
+<form action="/login" method="post">
+    <input type="hidden" name="redirect" value="{{redirect}}"/>
+    <div class="inputBox">
+        <input type="text" required name="email" /> <i>Identifier</i>
+    </div>
+    <div class="inputBox">
+        <input type="password" required name="password" /> <i>Password</i>
+    </div>
+    <div class="links">
+        <a href="#"></a>
+        <a href="/register">Signup</a>
+    </div>
+    <div class="inputBox">
+        <input type="submit" value="Login">
+    </div>
+</form>
 {% endblock content %}

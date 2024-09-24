@@ -2,9 +2,11 @@
 {% block title %}authorize{% endblock title %}
 
 {% block content %}
-<h2>{{application_name}}</H2>
+<h2>Authorize {{application_name}}</H2>
 <form action="/authorize" method="post">
     <input type="hidden" name="redirect" value="{{redirect}}"/>
-    <input type="submit" value="accepted"/>
+    <div class="inputBox">
+        <input type="submit" value="accepted">
+    </div>
 </form>
 {% endblock content %}

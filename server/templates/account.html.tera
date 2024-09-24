@@ -2,10 +2,14 @@
 {% block title %}account{% endblock title %}
 
 {% block content %}
+
+<h2>Account</h2>
 <p>
-    {{name}}
+    TODO
+{{name}}
 </p>
-<p>
-    <a href="/logout">Tchao</a>
-</p>
+<div class="links">
+    <a href="#"></a>
+    <a href="/logout">Logout</a>
+</div>
 {% endblock content %}

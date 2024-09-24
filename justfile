@@ -5,6 +5,7 @@ startup:
     docker compose up -d
     sleep 5
     sqlx database create
+    firefox $APP_HOST
 
 stop:
     docker compose down
