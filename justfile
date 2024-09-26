@@ -1,7 +1,7 @@
 set shell := ["bash", "-uc"]
 set dotenv-load
 
-startup:
+start:
     docker compose up -d
     sleep 5
     sqlx database create
@@ -10,7 +10,7 @@ startup:
 stop:
     docker compose down
 
-reset-db: startup
+reset-db: start
     sqlx database reset
 
 watch-server: sqlx-up

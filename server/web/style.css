@@ -1,6 +1,7 @@
 :root {
     --light-color: #26c4ec;
     --text-color: #fff;
+    --error-color: red;
 }
 
 * {
@@ -87,6 +88,10 @@ section {
             font-size: 2em;
             color: var(--light-color);
             text-transform: uppercase;
+        }
+        h3 {
+            font-size: 2em;
+            color: var(--error-color);
         }
 
         .links {
