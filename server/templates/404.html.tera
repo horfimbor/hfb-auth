@@ -1,0 +1,9 @@
+{% extends "base" %}
+{% block title %}Error 404{% endblock title %}
+
+{% block content %}
+
+<h2>Error 404</h2>
+<p>Hmm... This is not the droïd you are looking for</p>
+
+{% endblock content %}

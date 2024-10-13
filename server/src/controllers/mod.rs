@@ -1,7 +1,7 @@
-mod connexion;
-mod registration;
 mod application;
 mod authorization;
+mod connexion;
+mod registration;
 
 use crate::model::MariadDb;
 use hfb_auth_shared::user::AuthUserCommand;
@@ -33,7 +33,6 @@ pub fn get_routes() -> Vec<Route> {
 const COOKIE_SESSION: &str = "RUSTSESSID";
 const COOKIE_ERROR: &str = "SPACE_X";
 
-
 #[get("/")]
 async fn index(cookies: &CookieJar<'_>) -> Template {
     let session = cookies.get(COOKIE_SESSION);
@@ -42,8 +41,7 @@ async fn index(cookies: &CookieJar<'_>) -> Template {
             let error: Option<&str> = cookies.get(COOKIE_ERROR).map(|v| v.value());
             cookies.remove(COOKIE_ERROR);
             match error {
-                None => {
-                    connexion::render_login("", None)}
+                None => connexion::render_login("", None),
                 Some(str) => {
                     let mut s = str.split('|');
                     let error = s.next();
@@ -51,7 +49,7 @@ async fn index(cookies: &CookieJar<'_>) -> Template {
                     connexion::render_login(redirect.unwrap_or_default(), error)
                 }
             }
-        },
+        }
         Some(data) => Template::render(
             "account",
             context! {
@@ -60,7 +58,6 @@ async fn index(cookies: &CookieJar<'_>) -> Template {
         ),
     }
 }
-
 
 fn get_model_key(email: &str) -> ModelKey {
     ModelKey::new(

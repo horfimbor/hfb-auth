@@ -1,14 +1,14 @@
-use rocket::State;
+use crate::controllers::COOKIE_SESSION;
+use crate::{controllers, AuthUserRepository};
+use argon2::password_hash::rand_core::OsRng;
+use argon2::password_hash::SaltString;
+use argon2::{Argon2, PasswordHasher};
+use hfb_auth_shared::user::AuthUserCommand;
 use rocket::form::Form;
 use rocket::http::{CookieJar, Status};
 use rocket::response::Redirect;
-use argon2::password_hash::SaltString;
-use argon2::password_hash::rand_core::OsRng;
-use argon2::{Argon2, PasswordHasher};
-use hfb_auth_shared::user::AuthUserCommand;
+use rocket::State;
 use rocket_dyn_templates::{context, Template};
-use crate::{controllers, AuthUserRepository};
-use crate::controllers::COOKIE_SESSION;
 
 #[get("/register")]
 pub async fn register(cookies: &CookieJar<'_>) -> Template {

@@ -1,10 +1,10 @@
-use rocket::http::{CookieJar, Status};
-use rocket::State;
-use rocket_dyn_templates::{context, Template};
-use rocket::form::Form;
-use rocket::response::Redirect;
 use crate::controllers::{connexion, COOKIE_SESSION};
 use crate::model::MariadDb;
+use rocket::form::Form;
+use rocket::http::{CookieJar, Status};
+use rocket::response::Redirect;
+use rocket::State;
+use rocket_dyn_templates::{context, Template};
 
 #[get("/authorize?<redirect>")]
 pub async fn authorize(

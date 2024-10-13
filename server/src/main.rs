@@ -9,21 +9,21 @@ use crate::model::MariadDb;
 use anyhow::Context;
 use clap::Parser;
 use eventstore::Client;
+use hfb_auth_shared::user::{AuthUserCommand, AuthUserState, UserRole};
+use hfb_auth_shared::AUTH_USER_STREAM;
+use horfimbor_eventsource::cache_db::redis::StateDb;
+use horfimbor_eventsource::model_key::ModelKey;
+use horfimbor_eventsource::repository::{Repository, StateRepository};
 use rocket::fs::{relative, FileServer};
 use rocket::http::Method;
 use rocket::response::content;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
-use rocket_dyn_templates::Template;
+use rocket_dyn_templates::{context, Template};
 use sqlx::migrate::Migrator;
 use sqlx::MySqlPool;
 use std::env;
 use std::path::Path;
-use hfb_auth_shared::user::{AuthUserCommand, AuthUserState, UserRole};
-use horfimbor_eventsource::cache_db::redis::StateDb;
-use horfimbor_eventsource::model_key::ModelKey;
-use horfimbor_eventsource::repository::{Repository, StateRepository};
 use uuid::Uuid;
-use hfb_auth_shared::AUTH_USER_STREAM;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -34,7 +34,6 @@ struct Args {
     #[arg(short, long)]
     add_admin: Option<Uuid>,
 }
-
 
 type AuthUserStateCache = StateDb<AuthUserState>;
 type AuthUserRepository = StateRepository<AuthUserState, AuthUserStateCache>;
@@ -73,7 +72,8 @@ async fn main() -> anyhow::Result<()> {
                 AuthUserCommand::ChangeRole(Some(UserRole::Admin)),
                 None,
             )
-            .await.context("cannot change role")?;
+            .await
+            .context("cannot change role")?;
 
         dbg!(&admin);
         return Ok(());
@@ -120,7 +120,7 @@ async fn main() -> anyhow::Result<()> {
         .mount("/", FileServer::from(relative!("web")))
         .attach(cors)
         .attach(Template::fairing())
-        .register("/", catchers![general_not_found])
+        .register("/", catchers![general_not_found, internal_error])
         .launch()
         .await;
 
@@ -128,10 +128,11 @@ async fn main() -> anyhow::Result<()> {
 }
 
 #[catch(404)]
-fn general_not_found() -> content::RawHtml<&'static str> {
-    content::RawHtml(
-        r#"
-        <p>Hmm... This is not the droïd you are looking for</p>
-    "#,
-    )
+fn general_not_found() -> Template {
+    Template::render("404", context! {})
+}
+
+#[catch(500)]
+fn internal_error() -> Template {
+    Template::render("500", context! {})
 }
