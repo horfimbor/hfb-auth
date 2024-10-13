@@ -4,12 +4,14 @@ use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use hfb_auth_shared::user::{AuthUserCommand, AuthUserState};
 use horfimbor_eventsource::repository::Repository;
 use rocket::form::Form;
-use rocket::http::{Cookie, CookieJar, SameSite, Status};
+use rocket::http::{Cookie, CookieJar, SameSite};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::{context, Template};
+use url::Url;
+use crate::controllers::url_parsing::RedirectUrl;
 
-pub fn render_login(redirect: &str, error: Option<&str>) -> Template {
+pub fn render_login(redirect: Option<Url>, error: Option<&str>) -> Template {
     // todo generate csrf
     Template::render(
         "login",
@@ -58,7 +60,7 @@ pub async fn login(
     };
 
     let parsed_hash = PasswordHash::new(&password_hash)
-        .map_err(|e| redirect_failed_login(&login, cookies, "Password hashing failed"))?;
+        .map_err(|_| redirect_failed_login(&login, cookies, "Password hashing failed"))?;
 
     assert!(Argon2::default()
         .verify_password(login.password.as_ref(), &parsed_hash)

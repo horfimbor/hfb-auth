@@ -1,6 +1,5 @@
 mod controllers;
 mod model;
-mod user;
 
 #[macro_use]
 extern crate rocket;
@@ -16,7 +15,6 @@ use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::{Repository, StateRepository};
 use rocket::fs::{relative, FileServer};
 use rocket::http::Method;
-use rocket::response::content;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use rocket_dyn_templates::{context, Template};
 use sqlx::migrate::Migrator;

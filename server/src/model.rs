@@ -2,6 +2,7 @@ use uuid::Uuid;
 
 use anyhow::{anyhow, Result};
 use sqlx::{FromRow, MySql, Pool};
+use url::Host;
 
 #[derive(FromRow)]
 pub struct Account {
@@ -98,17 +99,19 @@ impl MariadDb {
             .ok_or(anyhow!("user created not found"))
     }
 
-    pub async fn get_application_by_host(&self, host: &str) -> Result<Option<Application>> {
-        let application = sqlx::query_as::<_, Application>(
-            "Select uuid, name, host, app_key from application where host = ?",
-        )
-        .bind(host)
-        .fetch_all(&self.db)
-        .await?;
+    pub async fn get_application_by_host(&self, _host: Host<String>) -> Result<Option<Application>> {
 
-        dbg!(&application);
-
-        Ok(application.into_iter().next())
+        todo!();
+        // let application = sqlx::query_as::<_, Application>(
+        //     "Select uuid, name, host, app_key from application where host = ?",
+        // )
+        // .bind(host)
+        // .fetch_all(&self.db)
+        // .await?;
+        //
+        // dbg!(&application);
+        //
+        // Ok(application.into_iter().next())
     }
     pub async fn get_application(&self, id: &str) -> Result<Option<Application>> {
         let application = sqlx::query_as::<_, Application>(

@@ -1,21 +1,20 @@
-mod application;
 mod authorization;
 mod connexion;
 mod registration;
+mod url_parsing;
 
 use crate::model::MariadDb;
-use hfb_auth_shared::user::AuthUserCommand;
 use hfb_auth_shared::AUTH_USER_STREAM;
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::Repository;
 use jsonwebtoken::{encode, EncodingKey, Header};
-use rocket::form::Form;
-use rocket::http::{Cookie, CookieJar, SameSite, Status};
-use rocket::response::Redirect;
+use rocket::form::{ Form, FromFormField};
+use rocket::http::{CookieJar, Status};
 use rocket::{Route, State};
 use rocket_dyn_templates::{context, Template};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
+use url::{ Url};
 use uuid::Uuid;
 
 pub fn get_routes() -> Vec<Route> {
@@ -41,12 +40,14 @@ async fn index(cookies: &CookieJar<'_>) -> Template {
             let error: Option<&str> = cookies.get(COOKIE_ERROR).map(|v| v.value());
             cookies.remove(COOKIE_ERROR);
             match error {
-                None => connexion::render_login("", None),
+                None => connexion::render_login(None, None),
                 Some(str) => {
                     let mut s = str.split('|');
                     let error = s.next();
-                    let redirect = s.next();
-                    connexion::render_login(redirect.unwrap_or_default(), error)
+                    let redirect = s.next().map(
+                        |v| Url::parse(v).unwrap()
+                    );
+                    connexion::render_login(redirect, error)
                 }
             }
         }
@@ -131,3 +132,5 @@ struct Claims {
     sub: String, // Optional. Subject (whom token refers to)
     id: String,
 }
+
+
