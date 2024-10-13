@@ -5,11 +5,12 @@ members = [ "auth-public-event",
 ]
 
 [workspace.dependencies]
-horfimbor-eventsource = "0.3"
+#horfimbor-eventsource = "0.3"
+horfimbor-eventsource ={path = "../horfimbor-engine/horfimbor-eventsource"}
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
 eventstore = "3.0"
-redis= { version = "0.26", features = ["tokio-rustls-comp"] }
+redis= { version = "0.27", features = ["tokio-rustls-comp"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

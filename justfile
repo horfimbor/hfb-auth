@@ -19,7 +19,7 @@ watch-server: sqlx-up
             -x "run -p hfb-auth-server"
 
 add-admin key:
-    export $(grep -v '^#' .env | xargs) && cargo run -p hfb-auth-server -- --add-admin {{key}}
+    cargo run -p hfb-auth-server -- --add-admin {{key}}
 
 precommit:
     cargo fmt

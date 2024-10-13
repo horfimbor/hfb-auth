@@ -4,11 +4,6 @@ mod application;
 mod authorization;
 
 use crate::model::MariadDb;
-use crate::AuthUserRepository;
-use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
-    Argon2,
-};
 use hfb_auth_shared::user::AuthUserCommand;
 use hfb_auth_shared::AUTH_USER_STREAM;
 use horfimbor_eventsource::model_key::ModelKey;
@@ -22,7 +17,6 @@ use rocket_dyn_templates::{context, Template};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
-use log::error;
 
 pub fn get_routes() -> Vec<Route> {
     routes![

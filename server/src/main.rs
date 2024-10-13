@@ -18,6 +18,12 @@ use sqlx::migrate::Migrator;
 use sqlx::MySqlPool;
 use std::env;
 use std::path::Path;
+use hfb_auth_shared::user::{AuthUserCommand, AuthUserState, UserRole};
+use horfimbor_eventsource::cache_db::redis::StateDb;
+use horfimbor_eventsource::model_key::ModelKey;
+use horfimbor_eventsource::repository::{Repository, StateRepository};
+use uuid::Uuid;
+use hfb_auth_shared::AUTH_USER_STREAM;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -26,13 +32,9 @@ struct Args {
     real_env: bool,
 
     #[arg(short, long)]
-    add_admin: Option<String>,
+    add_admin: Option<Uuid>,
 }
 
-use hfb_auth_shared::user::{AuthUserCommand, AuthUserState, UserRole};
-use horfimbor_eventsource::cache_db::redis::StateDb;
-use horfimbor_eventsource::model_key::ModelKey;
-use horfimbor_eventsource::repository::{Repository, StateRepository};
 
 type AuthUserStateCache = StateDb<AuthUserState>;
 type AuthUserRepository = StateRepository<AuthUserState, AuthUserStateCache>;
@@ -62,19 +64,19 @@ async fn main() -> anyhow::Result<()> {
         AuthUserStateCache::new(redis_client.clone()),
     );
 
-    if let Some(new_admin) = args.add_admin {
-        let key_string = new_admin.as_str();
-        let key: ModelKey =
-            <&str as TryInto<ModelKey>>::try_into(key_string.try_into().context("cannot convert")?)
-                .context("cannot convert 2")?;
+    if let Some(admin_id) = args.add_admin {
+        let key = ModelKey::new(AUTH_USER_STREAM, admin_id);
 
-        let _ = state_repository
+        let admin = state_repository
             .add_command(
                 &key,
                 AuthUserCommand::ChangeRole(Some(UserRole::Admin)),
                 None,
             )
-            .await;
+            .await.context("cannot change role")?;
+
+        dbg!(&admin);
+        return Ok(());
     }
 
     let auth_port = env::var("APP_PORT")
