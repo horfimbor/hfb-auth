@@ -3,11 +3,21 @@ authentication for the horfimbor game
 
 ## development
 
+### before first launch :
+
+install Rust
+
 ```bash
 cargo install cargo-watch
 cargo install sqlx-cli --no-default-features --features rustls,mysql
 ```
 
+### other launch : 
+
+```bash
+just start
+just watch-server
+```
 ###
 
 build and push image to minikube : 

@@ -1,3 +1,4 @@
+use crate::controllers::url_parsing::RedirectUrl;
 use crate::controllers::{connexion, COOKIE_SESSION};
 use crate::model::MariadDb;
 use rocket::form::Form;
@@ -5,7 +6,6 @@ use rocket::http::{CookieJar, Status};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::{context, Template};
-use crate::controllers::url_parsing::RedirectUrl;
 
 #[get("/authorize?<redirect>")]
 pub async fn authorize(
@@ -14,7 +14,6 @@ pub async fn authorize(
     redirect: RedirectUrl,
 ) -> Result<Template, Status> {
     dbg!(&redirect);
-
 
     let application = maria_db
         .get_application_by_host(redirect.host())

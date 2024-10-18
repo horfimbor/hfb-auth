@@ -1,3 +1,4 @@
+use crate::controllers::url_parsing::RedirectUrl;
 use crate::controllers::{COOKIE_ERROR, COOKIE_SESSION};
 use crate::{controllers, AuthUserRepository};
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
@@ -9,7 +10,6 @@ use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::{context, Template};
 use url::Url;
-use crate::controllers::url_parsing::RedirectUrl;
 
 pub fn render_login(redirect: Option<Url>, error: Option<&str>) -> Template {
     // todo generate csrf

@@ -4,6 +4,7 @@ mod model;
 #[macro_use]
 extern crate rocket;
 
+use crate::controllers::helper::hash_password;
 use crate::model::MariadDb;
 use anyhow::Context;
 use clap::Parser;
@@ -21,6 +22,7 @@ use sqlx::migrate::Migrator;
 use sqlx::MySqlPool;
 use std::env;
 use std::path::Path;
+use url::quirks::password;
 use uuid::Uuid;
 
 #[derive(Parser, Debug)]
@@ -30,7 +32,13 @@ struct Args {
     real_env: bool,
 
     #[arg(short, long)]
-    add_admin: Option<Uuid>,
+    user: Option<Uuid>,
+
+    #[arg(long)]
+    role: Option<UserRole>,
+
+    #[arg(long)]
+    password: Option<String>,
 }
 
 type AuthUserStateCache = StateDb<AuthUserState>;
@@ -61,19 +69,30 @@ async fn main() -> anyhow::Result<()> {
         AuthUserStateCache::new(redis_client.clone()),
     );
 
-    if let Some(admin_id) = args.add_admin {
-        let key = ModelKey::new(AUTH_USER_STREAM, admin_id);
+    if let Some(user) = args.user {
+        let key = ModelKey::new(AUTH_USER_STREAM, user);
 
-        let admin = state_repository
-            .add_command(
-                &key,
-                AuthUserCommand::ChangeRole(Some(UserRole::Admin)),
-                None,
-            )
-            .await
-            .context("cannot change role")?;
+        if let Some(role) = args.role {
+            let admin = state_repository
+                .add_command(&key, AuthUserCommand::ChangeRole(Some(role)), None)
+                .await
+                .context("cannot change role")?;
+            dbg!(&admin);
+        }
+        if let Some(password) = args.password {
+            let admin = state_repository
+                .add_command(
+                    &key,
+                    AuthUserCommand::ChangePassword {
+                        password_hash: hash_password(&password).unwrap(),
+                    },
+                    None,
+                )
+                .await
+                .context("cannot reset password")?;
+            dbg!(&admin);
+        }
 
-        dbg!(&admin);
         return Ok(());
     }
 

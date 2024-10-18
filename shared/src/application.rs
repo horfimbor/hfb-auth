@@ -1,21 +1,20 @@
-
 #[cfg(feature = "server")]
 use horfimbor_eventsource::horfimbor_eventsource_derive::{Command, Event};
 #[cfg(feature = "server")]
 use horfimbor_eventsource::{Command, CommandName, Event, EventName};
 
-use auth_public_event::PubAuthEvent;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use url::Host;
 #[cfg(feature = "server")]
 use crate::AUTH_APPLICATION_EVENT;
+use auth_public_event::PubAuthEvent;
+use serde::{Deserialize, Serialize};
+use url::Host;
+use uuid::Uuid;
 
 #[cfg_attr(feature = "server", derive(Command))]
 #[cfg_attr(feature = "server", state(AUTH_APPLICATION_EVENT))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum AuthApplicationCommand {
-    Create{
+    Create {
         uuid: Uuid,
         name: String,
         host: Host,

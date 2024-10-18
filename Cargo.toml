@@ -6,7 +6,8 @@ members = [ "auth-public-event",
 
 [workspace.dependencies]
 #horfimbor-eventsource = "0.3"
-horfimbor-eventsource ={path = "../horfimbor-engine/horfimbor-eventsource"}
+#horfimbor-eventsource ={path = "../horfimbor-engine/horfimbor-eventsource"}
+horfimbor-eventsource ={ git = "https://github.com/horfimbor/horfimbor-engine.git" , branch = "release-plz-2024-10-13T15-44-09Z"}
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
 eventstore = "3.0"

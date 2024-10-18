@@ -1166,7 +1166,8 @@ dependencies = [
 
 [[package]]
 name = "horfimbor-eventsource"
-version = "0.3.0"
+version = "0.3.1"
+source = "git+https://github.com/horfimbor/horfimbor-engine.git?branch=release-plz-2024-10-13T15-44-09Z#265930b0ed3a5084d0eaa433cf9bb49c42225be2"
 dependencies = [
  "async-trait",
  "eventstore",
@@ -1183,6 +1184,7 @@ dependencies = [
 [[package]]
 name = "horfimbor-eventsource-derive"
 version = "0.1.5"
+source = "git+https://github.com/horfimbor/horfimbor-engine.git?branch=release-plz-2024-10-13T15-44-09Z#265930b0ed3a5084d0eaa433cf9bb49c42225be2"
 dependencies = [
  "convert_case",
  "proc-macro2",

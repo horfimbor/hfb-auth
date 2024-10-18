@@ -99,8 +99,10 @@ impl MariadDb {
             .ok_or(anyhow!("user created not found"))
     }
 
-    pub async fn get_application_by_host(&self, _host: Host<String>) -> Result<Option<Application>> {
-
+    pub async fn get_application_by_host(
+        &self,
+        _host: Host<String>,
+    ) -> Result<Option<Application>> {
         todo!();
         // let application = sqlx::query_as::<_, Application>(
         //     "Select uuid, name, host, app_key from application where host = ?",

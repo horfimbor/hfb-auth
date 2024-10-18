@@ -1,4 +1,4 @@
-use crate::controllers::COOKIE_SESSION;
+use crate::controllers::{helper, COOKIE_SESSION};
 use crate::{controllers, AuthUserRepository};
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
@@ -43,15 +43,7 @@ pub async fn register_form(
     if register.password != register.password_check {
         todo!("handle password diff");
     }
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
-    let password_hash = argon2
-        .hash_password(register.password.as_ref(), &salt)
-        .map_err(|e| {
-            dbg!(e);
-            Status::InternalServerError
-        })?
-        .to_string();
+    let password_hash = helper::hash_password(register.password)?;
 
     state_repository
         .add_command(

@@ -4,6 +4,7 @@ use horfimbor_eventsource::horfimbor_eventsource_derive::{Command, Event, StateN
 use horfimbor_eventsource::{
     Command, CommandName, Dto, Event, EventName, State, StateName, StateNamed,
 };
+use std::str::FromStr;
 
 #[cfg(feature = "server")]
 use crate::AUTH_USER_EVENT;
@@ -16,6 +17,18 @@ use thiserror::Error;
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum UserRole {
     Admin,
+    None,
+}
+
+// needed for clap ??!
+impl From<String> for UserRole {
+    fn from(value: String) -> Self {
+        if value == "Admin" {
+            Self::Admin
+        } else {
+            Self::None
+        }
+    }
 }
 
 #[cfg_attr(feature = "server", derive(Command))]
@@ -174,8 +187,14 @@ impl State for AuthUserState {
                     }),
                 ])
             }
-            AuthUserCommand::ChangePassword { .. } => {
-                todo!()
+            AuthUserCommand::ChangePassword { password_hash } => {
+                let date = Utc::now();
+                Ok(vec![AuthUserEvent::Private(
+                    PrvAuthUserEvent::PasswordChanged {
+                        date,
+                        password_hash,
+                    },
+                )])
             }
             AuthUserCommand::Login => Ok(vec![AuthUserEvent::Private(PrvAuthUserEvent::LoggedIn(
                 Utc::now(),
