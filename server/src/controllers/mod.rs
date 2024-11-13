@@ -4,14 +4,12 @@ pub mod helper;
 mod registration;
 mod url_parsing;
 
-use crate::model::MariadDb;
 use hfb_auth_shared::AUTH_USER_STREAM;
 use horfimbor_eventsource::model_key::ModelKey;
-use horfimbor_eventsource::repository::Repository;
 use jsonwebtoken::{encode, EncodingKey, Header};
-use rocket::form::{Form, FromFormField};
+use rocket::form::{Form};
 use rocket::http::{CookieJar, Status};
-use rocket::{Route, State};
+use rocket::{Route};
 use rocket_dyn_templates::{context, Template};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -80,51 +78,53 @@ struct SingleUseToken<'r> {
 
 #[post("/single-use-token", data = "<token>")]
 async fn single_use_token(
-    maria_db: &State<MariadDb>,
     token: Form<SingleUseToken<'_>>,
 ) -> Result<String, Status> {
-    let token = maria_db
-        .get_one_time_token(token.token)
-        .await
-        .map_err(|_| Status::InternalServerError)?
-        .ok_or(Status::NotFound)?;
 
-    dbg!(&token);
-
-    let application = maria_db
-        .get_application(token.application_id())
-        .await
-        .map_err(|_| Status::InternalServerError)?
-        .ok_or(Status::NotFound)?;
-
-    dbg!(&application);
-
-    let start = SystemTime::now();
-    let since_the_epoch = start
-        .duration_since(UNIX_EPOCH)
-        .map_err(|_| Status::InternalServerError)?
-        .as_secs();
-
-    let claims = Claims {
-        aud: application
-            .name()
-            .parse()
-            .map_err(|_| Status::InternalServerError)?,
-        exp: (since_the_epoch + 3600) as usize,
-        iat: since_the_epoch as usize,
-        iss: "login".parse().unwrap(),
-        sub: "user".parse().unwrap(),
-        id: token.account_id().parse().unwrap(),
-    };
-
-    let token = encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(application.app_key().as_ref()),
-    )
-    .map_err(|_| Status::InternalServerError)?;
-
-    Ok(token)
+    todo!();
+    //
+    // let token = maria_db
+    //     .get_one_time_token(token.token)
+    //     .await
+    //     .map_err(|_| Status::InternalServerError)?
+    //     .ok_or(Status::NotFound)?;
+    //
+    // dbg!(&token);
+    //
+    // let application = maria_db
+    //     .get_application(token.application_id())
+    //     .await
+    //     .map_err(|_| Status::InternalServerError)?
+    //     .ok_or(Status::NotFound)?;
+    //
+    // dbg!(&application);
+    //
+    // let start = SystemTime::now();
+    // let since_the_epoch = start
+    //     .duration_since(UNIX_EPOCH)
+    //     .map_err(|_| Status::InternalServerError)?
+    //     .as_secs();
+    //
+    // let claims = Claims {
+    //     aud: application
+    //         .name()
+    //         .parse()
+    //         .map_err(|_| Status::InternalServerError)?,
+    //     exp: (since_the_epoch + 3600) as usize,
+    //     iat: since_the_epoch as usize,
+    //     iss: "login".parse().unwrap(),
+    //     sub: "user".parse().unwrap(),
+    //     id: token.account_id().parse().unwrap(),
+    // };
+    //
+    // let token = encode(
+    //     &Header::default(),
+    //     &claims,
+    //     &EncodingKey::from_secret(application.app_key().as_ref()),
+    // )
+    // .map_err(|_| Status::InternalServerError)?;
+    //
+    // Ok(token)
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -14,7 +14,6 @@ jsonwebtoken = "9.3"
 redis.workspace = true
 rocket ={ version = "0.5" }
 rocket_cors = "0.6"
-sqlx = { version = "0.8", features = [ "runtime-tokio-rustls", "mysql", "migrate" ] }
 uuid = { version = "1.8", features = ["v4", "v5"] }
 serde = "1.0"
 hfb-auth-shared= {path = "../shared", features = ["server"]}

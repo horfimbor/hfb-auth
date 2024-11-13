@@ -42,7 +42,7 @@ pub enum AuthUserCommand {
     ChangePassword {
         password_hash: String,
     },
-    Login,
+    Login, // TODO logic must be in command not in controller
     ChangeRole(Option<UserRole>),
 }
 
@@ -92,16 +92,6 @@ pub struct AuthUserState {
 }
 
 impl AuthUserState {
-    pub fn play_event(&mut self, event: &AuthUserEvent) {
-        match event {
-            AuthUserEvent::Private(private) => {
-                self.play_private_event(private);
-            }
-            AuthUserEvent::Public(public) => {
-                self.play_public_event(public);
-            }
-        }
-    }
 
     fn play_private_event(&mut self, event: &PrvAuthUserEvent) {
         match event {
@@ -121,6 +111,7 @@ impl AuthUserState {
             PrvAuthUserEvent::ChangeRole(role) => self.role = role.clone(),
         }
     }
+    
     fn play_public_event(&mut self, event: &PubAuthEvent) {
         match event {
             PubAuthEvent::UserCreated { pseudo } => {
@@ -157,7 +148,14 @@ impl Dto for AuthUserState {
     type Event = AuthUserEvent;
 
     fn play_event(&mut self, event: &Self::Event) {
-        self.play_event(event);
+        match event {
+            AuthUserEvent::Private(private) => {
+                self.play_private_event(private);
+            }
+            AuthUserEvent::Public(public) => {
+                self.play_public_event(public);
+            }
+        }
     }
 }
 

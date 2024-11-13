@@ -1,1 +1,0 @@
-drop table token_one_time;

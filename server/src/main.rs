@@ -1,11 +1,9 @@
 mod controllers;
-mod model;
 
 #[macro_use]
 extern crate rocket;
 
 use crate::controllers::helper::hash_password;
-use crate::model::MariadDb;
 use anyhow::Context;
 use clap::Parser;
 use eventstore::Client;
@@ -18,12 +16,11 @@ use rocket::fs::{relative, FileServer};
 use rocket::http::Method;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use rocket_dyn_templates::{context, Template};
-use sqlx::migrate::Migrator;
-use sqlx::MySqlPool;
 use std::env;
 use std::path::Path;
 use url::quirks::password;
 use uuid::Uuid;
+use hfb_auth_shared::application::AuthApplicationState;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -44,6 +41,9 @@ struct Args {
 type AuthUserStateCache = StateDb<AuthUserState>;
 type AuthUserRepository = StateRepository<AuthUserState, AuthUserStateCache>;
 
+type ApplicationStateCache = StateDb<AuthApplicationState>;
+type ApplicationRepository = StateRepository<AuthApplicationState, ApplicationStateCache>;
+
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
     let args: Args = Args::parse();
@@ -51,8 +51,6 @@ async fn main() -> anyhow::Result<()> {
     if !args.real_env {
         dotenvy::dotenv().context("cannot get env")?;
     }
-
-    let mariadb_url = env::var("MARIADB_URL").context("MARIADB_URL is not defined")?;
 
     let eventstore_uri = env::var("EVENTSTORE_URI")
         .context("fail to get EVENTSTORE_URI env var")?
@@ -64,7 +62,7 @@ async fn main() -> anyhow::Result<()> {
 
     let event_store_db = Client::new(eventstore_uri).context("fail to connect to eventstore db")?;
 
-    let state_repository = AuthUserRepository::new(
+    let auth_user_repository = AuthUserRepository::new(
         event_store_db.clone(),
         AuthUserStateCache::new(redis_client.clone()),
     );
@@ -73,7 +71,7 @@ async fn main() -> anyhow::Result<()> {
         let key = ModelKey::new(AUTH_USER_STREAM, user);
 
         if let Some(role) = args.role {
-            let admin = state_repository
+            let admin = auth_user_repository
                 .add_command(&key, AuthUserCommand::ChangeRole(Some(role)), None)
                 .await
                 .context("cannot change role")?;
@@ -92,7 +90,6 @@ async fn main() -> anyhow::Result<()> {
                 .context("cannot reset password")?;
             dbg!(&admin);
         }
-
         return Ok(());
     }
 
@@ -101,14 +98,6 @@ async fn main() -> anyhow::Result<()> {
         .parse::<u16>()
         .context("APP_PORT cannot be parse in u16")?;
     let auth_host = env::var("APP_HOST").context("APP_HOST is not defined")?;
-
-    let pool = MySqlPool::connect_lazy(&mariadb_url).context("cannot create pool")?;
-
-    let m = Migrator::new(Path::new("./migrations"))
-        .await
-        .context("cannot create migration")?;
-
-    m.run(&pool).await.context("cannot run migrations")?;
 
     let figment = rocket::Config::figment()
         .merge(("address", "0.0.0.0"))
@@ -131,8 +120,7 @@ async fn main() -> anyhow::Result<()> {
     .context("cannot create cors")?;
 
     let _ = rocket::custom(figment)
-        .manage(state_repository)
-        .manage(MariadDb::new(pool))
+        .manage(auth_user_repository)
         .mount("/", controllers::get_routes())
         .mount("/", FileServer::from(relative!("web")))
         .attach(cors)

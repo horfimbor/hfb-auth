@@ -23,7 +23,7 @@ pub fn render_login(redirect: Option<Url>, error: Option<&str>) -> Template {
 }
 
 #[derive(FromForm, Debug)]
-struct Login<'r> {
+pub struct Login<'r> {
     email: &'r str,
     password: &'r str,
     redirect: &'r str,
@@ -32,12 +32,12 @@ struct Login<'r> {
 #[post("/login", data = "<login>")]
 pub async fn login(
     login: Form<Login<'_>>,
-    state_repository: &State<AuthUserRepository>,
+    auth_user_repository: &State<AuthUserRepository>,
     cookies: &CookieJar<'_>,
 ) -> Result<Redirect, Redirect> {
     let key = controllers::get_model_key(login.email);
 
-    let model = state_repository
+    let model = auth_user_repository
         .get_model(&key)
         .await
         .map_err(|event_source_error| {
@@ -66,7 +66,7 @@ pub async fn login(
         .verify_password(login.password.as_ref(), &parsed_hash)
         .is_ok());
 
-    state_repository
+    auth_user_repository
         .add_command(&key, AuthUserCommand::Login, None)
         .await
         .map_err(|e| {
