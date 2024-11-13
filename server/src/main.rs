@@ -78,7 +78,7 @@ async fn main() -> anyhow::Result<()> {
             dbg!(&admin);
         }
         if let Some(password) = args.password {
-            let admin = state_repository
+            let admin = auth_user_repository
                 .add_command(
                     &key,
                     AuthUserCommand::ChangePassword {
