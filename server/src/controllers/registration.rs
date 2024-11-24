@@ -1,14 +1,16 @@
-use crate::controllers::{helper, COOKIE_SESSION};
+use crate::controllers::{helper, AUTH_USER_UUID, COOKIE_SESSION};
 use crate::{controllers, AuthUserRepository};
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHasher};
+use horfimbor_eventsource::model_key::ModelKey;
 use hfb_auth_shared::user::AuthUserCommand;
 use rocket::form::Form;
 use rocket::http::{CookieJar, Status};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::{context, Template};
+use hfb_auth_shared::AUTH_USER_STREAM;
 
 #[get("/register")]
 pub async fn register(cookies: &CookieJar<'_>) -> Template {
@@ -38,7 +40,7 @@ pub async fn register_form(
 ) -> Result<Redirect, Status> {
     let _data = cookies.get(COOKIE_SESSION);
 
-    let key = controllers::get_model_key(register.email);
+    let key = ModelKey::new_uuid_v8(AUTH_USER_STREAM, AUTH_USER_UUID, register.email);
 
     if register.password != register.password_check {
         todo!("handle password diff");

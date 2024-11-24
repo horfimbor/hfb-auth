@@ -30,6 +30,7 @@ pub fn get_routes() -> Vec<Route> {
 }
 const COOKIE_SESSION: &str = "RUSTSESSID";
 const COOKIE_ERROR: &str = "SPACE_X";
+const AUTH_USER_UUID: &str = "auth-user-uuid";
 
 #[get("/")]
 async fn index(cookies: &CookieJar<'_>) -> Template {
@@ -61,13 +62,6 @@ async fn index(cookies: &CookieJar<'_>) -> Template {
             },
         ),
     }
-}
-
-fn get_model_key(email: &str) -> ModelKey {
-    ModelKey::new(
-        AUTH_USER_STREAM,
-        Uuid::new_v5(&Uuid::NAMESPACE_X500, email.as_ref()),
-    )
 }
 
 #[derive(FromForm, Debug)]

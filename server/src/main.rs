@@ -1,4 +1,5 @@
 mod controllers;
+mod model;
 
 #[macro_use]
 extern crate rocket;

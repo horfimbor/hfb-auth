@@ -1,7 +1,8 @@
 use crate::controllers::url_parsing::RedirectUrl;
-use crate::controllers::{COOKIE_ERROR, COOKIE_SESSION};
+use crate::controllers::{AUTH_USER_UUID, COOKIE_ERROR, COOKIE_SESSION};
 use crate::{controllers, AuthUserRepository};
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
+use horfimbor_eventsource::model_key::ModelKey;
 use hfb_auth_shared::user::{AuthUserCommand, AuthUserState};
 use horfimbor_eventsource::repository::Repository;
 use rocket::form::Form;
@@ -10,6 +11,7 @@ use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::{context, Template};
 use url::Url;
+use hfb_auth_shared::AUTH_USER_STREAM;
 
 pub fn render_login(redirect: Option<Url>, error: Option<&str>) -> Template {
     // todo generate csrf
@@ -35,7 +37,7 @@ pub async fn login(
     auth_user_repository: &State<AuthUserRepository>,
     cookies: &CookieJar<'_>,
 ) -> Result<Redirect, Redirect> {
-    let key = controllers::get_model_key(login.email);
+    let key = ModelKey::new_uuid_v8(AUTH_USER_STREAM, AUTH_USER_UUID, login.email);
 
     let model = auth_user_repository
         .get_model(&key)
