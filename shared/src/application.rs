@@ -84,9 +84,7 @@ impl Dto for AuthApplicationState {
 }
 
 #[derive(Error, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum AuthApplicationError {
-
-}
+pub enum AuthApplicationError {}
 
 #[cfg(feature = "server")]
 impl State for AuthApplicationState {

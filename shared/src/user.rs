@@ -4,7 +4,6 @@ use horfimbor_eventsource::horfimbor_eventsource_derive::{Command, Event, StateN
 use horfimbor_eventsource::{
     Command, CommandName, Dto, Event, EventName, State, StateName, StateNamed,
 };
-use std::str::FromStr;
 
 #[cfg(feature = "server")]
 use crate::AUTH_USER_EVENT;
@@ -92,7 +91,6 @@ pub struct AuthUserState {
 }
 
 impl AuthUserState {
-
     fn play_private_event(&mut self, event: &PrvAuthUserEvent) {
         match event {
             PrvAuthUserEvent::Created { date } => {
@@ -111,7 +109,7 @@ impl AuthUserState {
             PrvAuthUserEvent::ChangeRole(role) => self.role = role.clone(),
         }
     }
-    
+
     fn play_public_event(&mut self, event: &PubAuthEvent) {
         match event {
             PubAuthEvent::UserCreated { pseudo } => {

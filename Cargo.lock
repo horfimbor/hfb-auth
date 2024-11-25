@@ -969,6 +969,7 @@ dependencies = [
  "clap",
  "dotenvy",
  "eventstore",
+ "futures",
  "hfb-auth-shared",
  "horfimbor-eventsource",
  "jsonwebtoken",

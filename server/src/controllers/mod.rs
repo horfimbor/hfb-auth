@@ -7,9 +7,9 @@ mod url_parsing;
 use hfb_auth_shared::AUTH_USER_STREAM;
 use horfimbor_eventsource::model_key::ModelKey;
 use jsonwebtoken::{encode, EncodingKey, Header};
-use rocket::form::{Form};
+use rocket::form::Form;
 use rocket::http::{CookieJar, Status};
-use rocket::{Route};
+use rocket::Route;
 use rocket_dyn_templates::{context, Template};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -71,10 +71,7 @@ struct SingleUseToken<'r> {
 }
 
 #[post("/single-use-token", data = "<token>")]
-async fn single_use_token(
-    token: Form<SingleUseToken<'_>>,
-) -> Result<String, Status> {
-
+async fn single_use_token(token: Form<SingleUseToken<'_>>) -> Result<String, Status> {
     todo!();
     //
     // let token = maria_db

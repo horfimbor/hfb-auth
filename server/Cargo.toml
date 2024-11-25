@@ -20,6 +20,7 @@ hfb-auth-shared= {path = "../shared", features = ["server"]}
 horfimbor-eventsource = {workspace = true}
 argon2 = "0.5"
 url = { version = "2.5", features = ["serde"] }
+futures = "0.3"
 
 [dependencies.rocket_dyn_templates]
 version = "0.2"

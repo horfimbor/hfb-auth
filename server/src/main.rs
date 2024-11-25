@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 mod controllers;
 mod model;
 
@@ -5,9 +7,12 @@ mod model;
 extern crate rocket;
 
 use crate::controllers::helper::hash_password;
-use anyhow::Context;
-use clap::Parser;
+use anyhow::{Context, Error};
+use clap::{Parser, Subcommand, ValueEnum};
 use eventstore::Client;
+use futures::future::{try_join_all, BoxFuture};
+use futures::task;
+use hfb_auth_shared::application::AuthApplicationState;
 use hfb_auth_shared::user::{AuthUserCommand, AuthUserState, UserRole};
 use hfb_auth_shared::AUTH_USER_STREAM;
 use horfimbor_eventsource::cache_db::redis::StateDb;
@@ -15,13 +20,19 @@ use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::{Repository, StateRepository};
 use rocket::fs::{relative, FileServer};
 use rocket::http::Method;
+use rocket::{tokio, Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use rocket_dyn_templates::{context, Template};
 use std::env;
+use std::future::Future;
 use std::path::Path;
 use url::quirks::password;
 use uuid::Uuid;
-use hfb_auth_shared::application::AuthApplicationState;
+
+#[derive(Debug, PartialEq, Clone, ValueEnum)]
+enum Service {
+    Web,
+}
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -29,14 +40,26 @@ struct Args {
     #[arg(short, long, default_value_t = false)]
     real_env: bool,
 
-    #[arg(short, long)]
-    user: Option<Uuid>,
+    #[clap(subcommand)]
+    command: Command,
+}
 
-    #[arg(long)]
-    role: Option<UserRole>,
+#[derive(Debug, Subcommand)]
+enum Command {
+    Cli {
+        #[arg(short, long)]
+        user: Uuid,
 
-    #[arg(long)]
-    password: Option<String>,
+        #[arg(long)]
+        role: Option<UserRole>,
+
+        #[arg(long)]
+        password: Option<String>,
+    },
+    Service {
+        #[arg(long)]
+        list: Vec<Service>,
+    },
 }
 
 type AuthUserStateCache = StateDb<AuthUserState>;
@@ -68,32 +91,55 @@ async fn main() -> anyhow::Result<()> {
         AuthUserStateCache::new(redis_client.clone()),
     );
 
-    if let Some(user) = args.user {
-        let key = ModelKey::new(AUTH_USER_STREAM, user);
+    match args.command {
+        Command::Cli {
+            user,
+            password,
+            role,
+        } => {
+            let key = ModelKey::new(AUTH_USER_STREAM, user);
 
-        if let Some(role) = args.role {
-            let admin = auth_user_repository
-                .add_command(&key, AuthUserCommand::ChangeRole(Some(role)), None)
-                .await
-                .context("cannot change role")?;
-            dbg!(&admin);
+            if let Some(role) = role {
+                let admin = auth_user_repository
+                    .add_command(&key, AuthUserCommand::ChangeRole(Some(role)), None)
+                    .await
+                    .context("cannot change role")?;
+                dbg!(&admin);
+            }
+
+            if let Some(password) = password {
+                let admin = auth_user_repository
+                    .add_command(
+                        &key,
+                        AuthUserCommand::ChangePassword {
+                            password_hash: hash_password(&password).unwrap(),
+                        },
+                        None,
+                    )
+                    .await
+                    .context("cannot reset password")?;
+                dbg!(&admin);
+            }
+            return Ok(());
         }
-        if let Some(password) = args.password {
-            let admin = auth_user_repository
-                .add_command(
-                    &key,
-                    AuthUserCommand::ChangePassword {
-                        password_hash: hash_password(&password).unwrap(),
-                    },
-                    None,
-                )
+        Command::Service { list } => {
+            let mut services = Vec::new();
+
+            if list.is_empty() || list.contains(&Service::Web) {
+                services.push(start_server(auth_user_repository)?);
+            }
+
+            try_join_all(services)
                 .await
-                .context("cannot reset password")?;
-            dbg!(&admin);
+                .map(|_| ())
+                .context("some service failed")
         }
-        return Ok(());
     }
+}
 
+fn start_server(
+    auth_user_repository: StateRepository<AuthUserState, AuthUserStateCache>,
+) -> anyhow::Result<BoxFuture<'static, Result<Rocket<Ignite>, rocket::Error>>> {
     let auth_port = env::var("APP_PORT")
         .context("APP_PORT is not defined")?
         .parse::<u16>()
@@ -120,17 +166,16 @@ async fn main() -> anyhow::Result<()> {
     .to_cors()
     .context("cannot create cors")?;
 
-    let _ = rocket::custom(figment)
-        .manage(auth_user_repository)
-        .mount("/", controllers::get_routes())
-        .mount("/", FileServer::from(relative!("web")))
-        .attach(cors)
-        .attach(Template::fairing())
-        .register("/", catchers![general_not_found, internal_error])
-        .launch()
-        .await;
-
-    Ok(())
+    Ok(Box::pin(
+        rocket::custom(figment)
+            .manage(auth_user_repository)
+            .mount("/", controllers::get_routes())
+            .mount("/", FileServer::from(relative!("web")))
+            .attach(cors)
+            .attach(Template::fairing())
+            .register("/", catchers![general_not_found, internal_error])
+            .launch(),
+    ))
 }
 
 #[catch(404)]

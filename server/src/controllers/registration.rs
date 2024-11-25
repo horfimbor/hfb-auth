@@ -3,14 +3,14 @@ use crate::{controllers, AuthUserRepository};
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHasher};
-use horfimbor_eventsource::model_key::ModelKey;
 use hfb_auth_shared::user::AuthUserCommand;
+use hfb_auth_shared::AUTH_USER_STREAM;
+use horfimbor_eventsource::model_key::ModelKey;
 use rocket::form::Form;
 use rocket::http::{CookieJar, Status};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::{context, Template};
-use hfb_auth_shared::AUTH_USER_STREAM;
 
 #[get("/register")]
 pub async fn register(cookies: &CookieJar<'_>) -> Template {
@@ -24,7 +24,7 @@ pub async fn register(cookies: &CookieJar<'_>) -> Template {
 }
 
 #[derive(FromForm, Debug)]
-struct Register<'r> {
+pub struct Register<'r> {
     email: &'r str,
     pseudo: &'r str,
     password: &'r str,

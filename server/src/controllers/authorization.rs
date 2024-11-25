@@ -1,16 +1,13 @@
+use crate::controllers::url_parsing::RedirectUrl;
 use crate::controllers::{connexion, COOKIE_SESSION};
 use rocket::form::Form;
 use rocket::http::{CookieJar, Status};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::{context, Template};
-use crate::controllers::url_parsing::RedirectUrl;
 
 #[get("/authorize?<redirect>")]
-pub async fn authorize(
-    cookies: &CookieJar<'_>,
-    redirect: RedirectUrl,
-) -> Result<Template, Status> {
+pub async fn authorize(cookies: &CookieJar<'_>, redirect: RedirectUrl) -> Result<Template, Status> {
     dbg!(&redirect);
 
     todo!();
@@ -38,7 +35,7 @@ pub async fn authorize(
 }
 
 #[derive(FromForm, Debug)]
-struct Authorize {
+pub struct Authorize {
     redirect: RedirectUrl,
 }
 
