@@ -90,7 +90,11 @@ pub async fn login(
         )));
     }
 
-    Ok(Redirect::to(uri!(controllers::index)))
+    if user.is_admin() {
+        Ok(Redirect::to(uri!(controllers::admin::admin)))
+    } else {
+        Ok(Redirect::to(uri!(controllers::index)))
+    }
 }
 
 fn redirect_failed_login(login: &Form<Login>, cookies: &CookieJar, error: &str) -> Redirect {

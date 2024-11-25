@@ -14,11 +14,11 @@ watch-server:
             cargo watch -w server -w shared  \
             -x "run -p hfb-auth-server service"
 
-add-admin key:
-    cargo run -p hfb-auth-server -- cli --user {{key}} --role Admin
+add-admin uuid:
+    cargo run -p hfb-auth-server -- cli --user {{uuid}} --role Admin
 
-reset-password key:
-    cargo run -p hfb-auth-server -- cli --user {{key}} --password empty
+reset-password uuid:
+    cargo run -p hfb-auth-server -- cli --user {{uuid}} --password empty
 
 precommit:
     cargo fmt

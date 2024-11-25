@@ -1,3 +1,4 @@
+use std::iter;
 #[cfg(feature = "server")]
 use horfimbor_eventsource::horfimbor_eventsource_derive::{Command, Event, StateNamed};
 #[cfg(feature = "server")]
@@ -5,6 +6,7 @@ use horfimbor_eventsource::{Command, CommandName, Event, EventName, StateName, S
 use horfimbor_eventsource::{Dto, State};
 use serde::{Deserialize, Serialize};
 use std::net::Ipv4Addr;
+use rand::Rng;
 use thiserror::Error;
 use url::Host;
 
@@ -18,9 +20,8 @@ pub enum AuthApplicationCommand {
     Create {
         name: String,
         host: Host,
-        key: String,
     },
-    Delete,
+    RegenerateKey,
 }
 
 #[cfg_attr(feature = "server", derive(Event))]
@@ -32,6 +33,9 @@ pub enum PrivateAuthApplicationEvent {
         host: Host,
         key: String,
     },
+    KeyChanged{
+        key: String,
+    }
 }
 
 #[cfg_attr(feature = "server", derive(Event))]
@@ -68,7 +72,17 @@ impl AuthApplicationState {
                 self.key = key.clone();
                 self.name = name.clone();
             }
+            PrivateAuthApplicationEvent::KeyChanged { key } => {
+                self.key = key.clone();
+            }
         }
+    }
+
+    fn generate_key() -> String {
+        const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz";
+        let mut rng = rand::thread_rng();
+        let one_char = || CHARSET[rng.gen_range(0..CHARSET.len())] as char;
+        iter::repeat_with(one_char).take(40).collect()
     }
 }
 
@@ -93,14 +107,20 @@ impl State for AuthApplicationState {
 
     fn try_command(&self, command: Self::Command) -> Result<Vec<Self::Event>, Self::Error> {
         match command {
-            AuthApplicationCommand::Create { key, name, host } => {
+            AuthApplicationCommand::Create {  name, host } => {
+
+                let key = AuthApplicationState::generate_key();
+
                 Ok(vec![AuthApplicationEvent::Private(
                     PrivateAuthApplicationEvent::Created { key, name, host },
                 )])
             }
-            AuthApplicationCommand::Delete => {
-                // FIXME
-                Ok(vec![])
+            AuthApplicationCommand::RegenerateKey => {
+                let key = AuthApplicationState::generate_key();
+
+                Ok(vec![AuthApplicationEvent::Private(
+                    PrivateAuthApplicationEvent::KeyChanged { key },
+                )])
             }
         }
     }

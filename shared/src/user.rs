@@ -139,6 +139,10 @@ impl AuthUserState {
     pub fn last_login(&self) -> Option<DateTime<Utc>> {
         self.last_login
     }
+
+    pub fn is_admin(&self) -> bool {
+        self.role == Some(UserRole::Admin)
+    }
 }
 
 #[cfg(feature = "server")]

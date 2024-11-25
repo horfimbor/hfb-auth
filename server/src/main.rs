@@ -1,17 +1,16 @@
 #![allow(unused)]
 
 mod controllers;
-mod model;
 
 #[macro_use]
 extern crate rocket;
 
 use crate::controllers::helper::hash_password;
-use anyhow::{Context, Error};
+use anyhow::{bail, Context, Error};
 use clap::{Parser, Subcommand, ValueEnum};
 use eventstore::Client;
 use futures::future::{try_join_all, BoxFuture};
-use futures::task;
+use futures::{task, FutureExt};
 use hfb_auth_shared::application::AuthApplicationState;
 use hfb_auth_shared::user::{AuthUserCommand, AuthUserState, UserRole};
 use hfb_auth_shared::AUTH_USER_STREAM;
@@ -20,18 +19,21 @@ use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::{Repository, StateRepository};
 use rocket::fs::{relative, FileServer};
 use rocket::http::Method;
+use rocket::tokio::time::sleep;
 use rocket::{tokio, Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use rocket_dyn_templates::{context, Template};
 use std::env;
 use std::future::Future;
 use std::path::Path;
+use std::time::Duration;
 use url::quirks::password;
 use uuid::Uuid;
 
 #[derive(Debug, PartialEq, Clone, ValueEnum)]
 enum Service {
     Web,
+    Sleep,
 }
 
 #[derive(Parser, Debug)]
@@ -90,6 +92,10 @@ async fn main() -> anyhow::Result<()> {
         event_store_db.clone(),
         AuthUserStateCache::new(redis_client.clone()),
     );
+    let application_repository = ApplicationRepository::new(
+        event_store_db.clone(),
+        ApplicationStateCache::new(redis_client.clone()),
+    );
 
     match args.command {
         Command::Cli {
@@ -126,8 +132,10 @@ async fn main() -> anyhow::Result<()> {
             let mut services = Vec::new();
 
             if list.is_empty() || list.contains(&Service::Web) {
-                services.push(start_server(auth_user_repository)?);
+                services.push(start_server(auth_user_repository, application_repository).boxed());
             }
+
+            services.push(boop().boxed());
 
             try_join_all(services)
                 .await
@@ -137,9 +145,16 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-fn start_server(
-    auth_user_repository: StateRepository<AuthUserState, AuthUserStateCache>,
-) -> anyhow::Result<BoxFuture<'static, Result<Rocket<Ignite>, rocket::Error>>> {
+async fn boop() -> Result<(), Error> {
+    sleep(Duration::from_millis(2000)).await;
+    println!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    Ok(())
+}
+
+async fn start_server(
+    auth_user_repository: AuthUserRepository,
+    application_repository: ApplicationRepository
+) -> Result<(), Error> {
     let auth_port = env::var("APP_PORT")
         .context("APP_PORT is not defined")?
         .parse::<u16>()
@@ -166,16 +181,19 @@ fn start_server(
     .to_cors()
     .context("cannot create cors")?;
 
-    Ok(Box::pin(
-        rocket::custom(figment)
-            .manage(auth_user_repository)
-            .mount("/", controllers::get_routes())
-            .mount("/", FileServer::from(relative!("web")))
-            .attach(cors)
-            .attach(Template::fairing())
-            .register("/", catchers![general_not_found, internal_error])
-            .launch(),
-    ))
+    let _ = rocket::custom(figment)
+        .manage(auth_user_repository)
+        .manage(application_repository)
+        .mount("/", controllers::get_routes())
+        .mount("/", FileServer::from(relative!("web")))
+        .attach(cors)
+        .attach(Template::fairing())
+        .register("/", catchers![general_not_found, internal_error])
+        .launch()
+        .await
+        .context("rocket failed");
+
+    Ok(())
 }
 
 #[catch(404)]

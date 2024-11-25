@@ -1,3 +1,4 @@
+mod admin;
 mod authorization;
 mod connexion;
 pub mod helper;
@@ -26,11 +27,13 @@ pub fn get_routes() -> Vec<Route> {
         connexion::logout,
         registration::register,
         registration::register_form,
+        admin::admin,
     ]
 }
 const COOKIE_SESSION: &str = "RUSTSESSID";
 const COOKIE_ERROR: &str = "SPACE_X";
 const AUTH_USER_UUID: &str = "auth-user-uuid";
+const AUTH_APPLICATION_UUID: &str = "auth-apps-uuid";
 
 #[get("/")]
 async fn index(cookies: &CookieJar<'_>) -> Template {

@@ -989,10 +989,10 @@ dependencies = [
  "auth-public-event",
  "chrono",
  "horfimbor-eventsource",
+ "rand",
  "serde",
  "thiserror 2.0.3",
  "url",
- "uuid",
 ]
 
 [[package]]
