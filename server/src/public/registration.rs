@@ -1,5 +1,6 @@
-use crate::controllers::{helper, AUTH_USER_UUID, COOKIE_SESSION};
-use crate::{controllers, AuthUserRepository};
+use crate::constants::{AUTH_USER_UUID, COOKIE_SESSION};
+use crate::public::helper;
+use crate::{public, AuthUserRepository};
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHasher};
@@ -62,5 +63,5 @@ pub async fn register_form(
             Status::InternalServerError
         })?;
 
-    Ok(Redirect::to(uri!(controllers::index)))
+    Ok(Redirect::to(uri!(public::index)))
 }

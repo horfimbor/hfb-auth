@@ -12,7 +12,7 @@ dotenvy = "0.15"
 eventstore.workspace = true
 jsonwebtoken = "9.3"
 redis.workspace = true
-rocket ={ version = "0.5" }
+rocket ={ version = "0.5", features = ["secrets"] }
 rocket_cors = "0.6"
 uuid = { version = "1.8", features = ["v4", "v5"] }
 serde = "1.0"

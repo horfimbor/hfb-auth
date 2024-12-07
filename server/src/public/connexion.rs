@@ -1,6 +1,6 @@
-use crate::controllers::url_parsing::RedirectUrl;
-use crate::controllers::{AUTH_USER_UUID, COOKIE_ERROR, COOKIE_SESSION};
-use crate::{controllers, AuthUserRepository};
+use crate::constants::{AUTH_USER_UUID, COOKIE_ERROR, COOKIE_SESSION};
+use crate::url_parsing::RedirectUrl;
+use crate::{account, admin, authorization, public, AuthUserRepository};
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use hfb_auth_shared::user::{AuthUserCommand, AuthUserState};
 use hfb_auth_shared::AUTH_USER_STREAM;
@@ -13,7 +13,30 @@ use rocket::State;
 use rocket_dyn_templates::{context, Template};
 use url::Url;
 
-pub fn render_login(redirect: Option<Url>, error: Option<&str>) -> Template {
+#[get("/login")]
+pub async fn index(cookies: &CookieJar<'_>) -> Template {
+    let error: Option<String> = cookies
+        .get_private(COOKIE_ERROR)
+        .map(|v| v.value().to_string());
+    cookies.remove_private(COOKIE_ERROR);
+    match error {
+        None => render_login(None, None),
+        Some(str) => {
+            let mut s = str.split('|');
+            let error = s.next();
+            let redirect = s.next().map(|v| {
+                if v.is_empty() {
+                    None
+                } else {
+                    Some(Url::parse(v).unwrap())
+                }
+            });
+            render_login(redirect.flatten(), error)
+        }
+    }
+}
+
+fn render_login(redirect: Option<Url>, error: Option<&str>) -> Template {
     // todo generate csrf
     Template::render(
         "login",
@@ -80,35 +103,31 @@ pub async fn login(
 
     let mut cookie = Cookie::new(COOKIE_SESSION, key.format());
     cookie.set_same_site(Some(SameSite::Lax));
-    cookies.add(cookie);
+    cookies.add_private(cookie);
 
     if !login.redirect.is_empty() {
         let redirect = login.redirect.to_string();
         dbg!(&redirect);
-        return Ok(Redirect::temporary(uri!(
-            controllers::authorization::authorize(redirect)
-        )));
+        return Ok(Redirect::temporary(uri!(authorization::authorize(
+            redirect
+        ))));
     }
 
-    if user.is_admin() {
-        Ok(Redirect::to(uri!(controllers::admin::admin)))
-    } else {
-        Ok(Redirect::to(uri!(controllers::index)))
-    }
+    Ok(Redirect::to(uri!(account::index)))
 }
 
 fn redirect_failed_login(login: &Form<Login>, cookies: &CookieJar, error: &str) -> Redirect {
     let mut cookie = Cookie::new(COOKIE_ERROR, format!("{}|{}", error, login.redirect));
     cookie.set_same_site(Some(SameSite::Lax));
 
-    cookies.add(cookie);
+    cookies.add_private(cookie);
 
-    Redirect::to(uri!(controllers::index))
+    Redirect::to(uri!(public::index))
 }
 
 #[get("/logout")]
 pub async fn logout(cookies: &CookieJar<'_>) -> Redirect {
     cookies.remove(COOKIE_SESSION);
 
-    Redirect::to(uri!(controllers::index))
+    Redirect::to(uri!(public::index))
 }

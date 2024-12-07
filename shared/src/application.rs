@@ -1,12 +1,12 @@
-use std::iter;
 #[cfg(feature = "server")]
 use horfimbor_eventsource::horfimbor_eventsource_derive::{Command, Event, StateNamed};
 #[cfg(feature = "server")]
 use horfimbor_eventsource::{Command, CommandName, Event, EventName, StateName, StateNamed};
 use horfimbor_eventsource::{Dto, State};
-use serde::{Deserialize, Serialize};
-use std::net::Ipv4Addr;
 use rand::Rng;
+use serde::{Deserialize, Serialize};
+use std::iter;
+use std::net::Ipv4Addr;
 use thiserror::Error;
 use url::Host;
 
@@ -17,10 +17,7 @@ use crate::AUTH_APPLICATION_EVENT;
 #[cfg_attr(feature = "server", state(AUTH_APPLICATION_EVENT))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum AuthApplicationCommand {
-    Create {
-        name: String,
-        host: Host,
-    },
+    Create { name: String, host: Host },
     RegenerateKey,
 }
 
@@ -33,9 +30,9 @@ pub enum PrivateAuthApplicationEvent {
         host: Host,
         key: String,
     },
-    KeyChanged{
+    KeyChanged {
         key: String,
-    }
+    },
 }
 
 #[cfg_attr(feature = "server", derive(Event))]
@@ -107,8 +104,7 @@ impl State for AuthApplicationState {
 
     fn try_command(&self, command: Self::Command) -> Result<Vec<Self::Event>, Self::Error> {
         match command {
-            AuthApplicationCommand::Create {  name, host } => {
-
+            AuthApplicationCommand::Create { name, host } => {
                 let key = AuthApplicationState::generate_key();
 
                 Ok(vec![AuthApplicationEvent::Private(

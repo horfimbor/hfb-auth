@@ -1,11 +1,17 @@
 #![allow(unused)]
 
-mod controllers;
+pub mod account;
+pub mod admin;
+mod authorization;
+mod constants;
+pub mod public;
+mod url_parsing;
+mod user;
 
 #[macro_use]
 extern crate rocket;
 
-use crate::controllers::helper::hash_password;
+use crate::public::helper::hash_password;
 use anyhow::{bail, Context, Error};
 use clap::{Parser, Subcommand, ValueEnum};
 use eventstore::Client;
@@ -146,14 +152,18 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn boop() -> Result<(), Error> {
-    sleep(Duration::from_millis(2000)).await;
-    println!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    sleep(Duration::from_secs(2)).await;
+    println!("bip");
+    loop {
+        sleep(Duration::from_secs(60)).await;
+        println!("boop !");
+    }
     Ok(())
 }
 
 async fn start_server(
     auth_user_repository: AuthUserRepository,
-    application_repository: ApplicationRepository
+    application_repository: ApplicationRepository,
 ) -> Result<(), Error> {
     let auth_port = env::var("APP_PORT")
         .context("APP_PORT is not defined")?
@@ -161,10 +171,14 @@ async fn start_server(
         .context("APP_PORT cannot be parse in u16")?;
     let auth_host = env::var("APP_HOST").context("APP_HOST is not defined")?;
 
+    let cookie_secret_key =
+        env::var("COOKIE_SECRET_KEY").context("COOKIE_SECRET_KEY must be provided")?;
+
     let figment = rocket::Config::figment()
         .merge(("address", "0.0.0.0"))
         .merge(("port", auth_port))
-        .merge(("template_dir", "server/templates"));
+        .merge(("template_dir", "server/templates"))
+        .merge(("secret_key", cookie_secret_key));
 
     let allowed_origins = AllowedOrigins::some_exact(&[auth_host]);
 
@@ -184,7 +198,10 @@ async fn start_server(
     let _ = rocket::custom(figment)
         .manage(auth_user_repository)
         .manage(application_repository)
-        .mount("/", controllers::get_routes())
+        .mount("/", admin::get_admin_routes())
+        .mount("/", authorization::get_authorization_routes())
+        .mount("/", account::get_account_routes())
+        .mount("/", public::get_routes())
         .mount("/", FileServer::from(relative!("web")))
         .attach(cors)
         .attach(Template::fairing())
