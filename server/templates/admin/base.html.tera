@@ -2,13 +2,18 @@
 <html lang="en">
 <head>
     {% block head %}
-    <link rel="stylesheet" href="style/admin.css"/>
+    <link rel="stylesheet" href="/style/base.css"/>
+    <link rel="stylesheet" href="/style/admin.css"/>
     <title>{% block title %}{% endblock title %}</title>
     {% endblock head %}
 </head>
 <body>
 
 <section>
+    {% for i in range(end=200) %}
+    <span></span>
+    {% endfor %}
+
     <div class="container">
         <div class="content">
             {% block content %} {% endblock %}

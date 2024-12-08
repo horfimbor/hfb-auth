@@ -14,8 +14,20 @@ pub struct User {
     state: AuthUserState,
 }
 
+impl User {
+    pub fn state(&self) -> &AuthUserState {
+        &self.state
+    }
+}
+
 pub struct Admin {
     state: AuthUserState,
+}
+
+impl Admin {
+    pub fn state(&self) -> &AuthUserState {
+        &self.state
+    }
 }
 
 #[derive(Debug)]

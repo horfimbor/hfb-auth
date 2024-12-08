@@ -18,7 +18,8 @@ pub fn get_admin_routes() -> Vec<Route> {
         application::list,
         application::get,
         application::update,
-        application::create,
+        application::get_create,
+        application::post_create,
     ]
 }
 

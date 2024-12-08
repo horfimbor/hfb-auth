@@ -1,3 +1,4 @@
+use crate::admin::application;
 use crate::user::User;
 use hfb_auth_shared::user::AuthUserState;
 use rocket::http::CookieJar;
@@ -14,7 +15,9 @@ pub async fn index(user: User) -> Template {
     Template::render(
         "account",
         context! {
-            name: "bob"
+            account: user.state(),
+            is_admin: user.state().is_admin(),
+            uri_applications: uri!(application::list)
         },
     )
 }

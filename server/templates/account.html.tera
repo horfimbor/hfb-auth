@@ -4,11 +4,20 @@
 {% block content %}
 
 <h2>Account</h2>
-<p>
-    TODO
-{{name}}
-</p>
+<ul>
+    <li>pseudo : {{account.pseudo}}</li>
+    <li>created_at : {{account.created_at}}</li>
+    <li>last_login : {{account.last_login}}</li>
+    {% if is_admin %}
+        <li>admin : yes</li>
+    {% else %}
+        <li>admin : no</li>
+    {% endif %}
+</ul>
 <div class="links">
+    {% if is_admin %}
+    <a href="{{uri_applications}}">Applications</a>
+    {% endif %}
     <a href="#"></a>
     <a href="/logout">Logout</a>
 </div>

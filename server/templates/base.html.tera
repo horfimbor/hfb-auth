@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     {% block head %}
-    <link rel="stylesheet" href="style/base.css"/>
+    <link rel="stylesheet" href="/style/constants.css"/>
+    <link rel="stylesheet" href="/style/base.css"/>
     <title>{% block title %}{% endblock title %}</title>
     {% endblock head %}
 </head>

@@ -7,17 +7,16 @@
 {% if error %}
 <h3>{{error}}</h3>
 {% endif %}
-<form action="/admin-application" method="post">
-    Create Application
-    <div class="inputBox">
-        <input type="text" required name="name" /> <i>Name</i>
+
+<ul>
+    {% for app in applications %}
+        <li>{{app}}</li>
+    {% endfor %}
+
+    <div class="links">
+        <a href="#"></a>
+        <a href="/admin/new-application">new app</a>
     </div>
-    <div class="inputBox">
-        <input type="text" required name="host" /> <i>Host</i>
-    </div>
-    <div class="inputBox">
-        <input type="submit" value="Create">
-    </div>
-</form>
+</ul>
 
 {% endblock content %}

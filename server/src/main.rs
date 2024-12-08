@@ -11,18 +11,25 @@ mod user;
 #[macro_use]
 extern crate rocket;
 
+use crate::constants::APPLICATION_LIST_REDIS_KEY;
 use crate::public::helper::hash_password;
 use anyhow::{bail, Context, Error};
 use clap::{Parser, Subcommand, ValueEnum};
-use eventstore::Client;
+use eventstore::Client as EventstoreClient;
 use futures::future::{try_join_all, BoxFuture};
 use futures::{task, FutureExt};
-use hfb_auth_shared::application::AuthApplicationState;
+use hfb_auth_shared::application::{
+    AuthApplicationEvent, AuthApplicationState, PrivateAuthApplicationEvent,
+};
 use hfb_auth_shared::user::{AuthUserCommand, AuthUserState, UserRole};
-use hfb_auth_shared::AUTH_USER_STREAM;
+use hfb_auth_shared::{AUTH_APPLICATION_STREAM, AUTH_USER_STREAM};
 use horfimbor_eventsource::cache_db::redis::StateDb;
+use horfimbor_eventsource::helper::{create_subscription, get_persistent_subscription};
+use horfimbor_eventsource::metadata::Metadata;
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::{Repository, StateRepository};
+use horfimbor_eventsource::Stream;
+use redis::{Client as RedisClient, Commands};
 use rocket::fs::{relative, FileServer};
 use rocket::http::Method;
 use rocket::tokio::time::sleep;
@@ -34,12 +41,13 @@ use std::future::Future;
 use std::path::Path;
 use std::time::Duration;
 use url::quirks::password;
+use url::Host;
 use uuid::Uuid;
 
 #[derive(Debug, PartialEq, Clone, ValueEnum)]
 enum Service {
     Web,
-    Sleep,
+    Application,
 }
 
 #[derive(Parser, Debug)]
@@ -90,9 +98,10 @@ async fn main() -> anyhow::Result<()> {
         .context("fail to parse the settings")?;
 
     let redis_client =
-        redis::Client::open(env::var("REDIS_URI").context("fail to get REDIS_URI env var")?)?;
+        RedisClient::open(env::var("REDIS_URI").context("fail to get REDIS_URI env var")?)?;
 
-    let event_store_db = Client::new(eventstore_uri).context("fail to connect to eventstore db")?;
+    let event_store_db =
+        EventstoreClient::new(eventstore_uri).context("fail to connect to eventstore db")?;
 
     let auth_user_repository = AuthUserRepository::new(
         event_store_db.clone(),
@@ -132,16 +141,27 @@ async fn main() -> anyhow::Result<()> {
                     .context("cannot reset password")?;
                 dbg!(&admin);
             }
-            return Ok(());
+            Ok(())
         }
         Command::Service { list } => {
             let mut services = Vec::new();
 
             if list.is_empty() || list.contains(&Service::Web) {
-                services.push(start_server(auth_user_repository, application_repository).boxed());
+                services.push(
+                    start_server(
+                        auth_user_repository,
+                        application_repository,
+                        redis_client.clone(),
+                    )
+                    .boxed(),
+                );
             }
 
-            services.push(boop().boxed());
+            if list.is_empty() || list.contains(&Service::Application) {
+                services.push(listen_applications(event_store_db, redis_client).boxed());
+            }
+
+            dbg!(services.len());
 
             try_join_all(services)
                 .await
@@ -151,19 +171,81 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-async fn boop() -> Result<(), Error> {
-    sleep(Duration::from_secs(2)).await;
-    println!("bip");
+async fn listen_applications(event_db: EventstoreClient, redis: RedisClient) -> Result<(), Error> {
+    let stream = Stream::Stream(AUTH_APPLICATION_STREAM);
+    let group_name = "oups";
+
+    create_subscription(&event_db, &stream, group_name)
+        .await
+        .context("cannot create subscription")?;
+
+    let mut sub = get_persistent_subscription(&event_db, &stream, group_name)
+        .await
+        .context("cannot get subscription")?;
+
+    let mut connection = redis.get_connection().context("cannot connect to redis")?;
+
+    let raw_data: Option<String> = connection
+        .get(APPLICATION_LIST_REDIS_KEY)
+        .context("cannot get data")?;
+
+    let mut application_list = match raw_data {
+        None => Vec::new(),
+        Some(list) => list.split("|").map(|s| s.to_string()).collect(),
+    };
     loop {
-        sleep(Duration::from_secs(60)).await;
-        println!("boop !");
+        let rcv_event = sub.next().await.expect("cannot get next event");
+
+        let event = match rcv_event.event.as_ref() {
+            None => {
+                continue;
+            }
+            Some(event) => event,
+        };
+
+        // FIXME change this metadata check
+        let metadata: Metadata =
+            serde_json::from_slice(event.custom_metadata.as_ref()).context("cannot deserialize")?;
+
+        if !metadata.is_event() {
+            sub.ack(rcv_event)
+                .await
+                .context("cannot acknowledge event")?;
+
+            continue;
+        }
+
+        let event = event
+            .as_json::<AuthApplicationEvent>()
+            .expect("cannot deserialize");
+
+        match event {
+            AuthApplicationEvent::Private(prv) => match prv {
+                PrivateAuthApplicationEvent::Created { name, host, key } => {
+                    application_list.push(name);
+
+                    let data = application_list.clone().join("|");
+
+                    connection
+                        .set(APPLICATION_LIST_REDIS_KEY, data)
+                        .context("cannot set data in redis")?;
+                }
+                PrivateAuthApplicationEvent::KeyChanged { .. } => {}
+            },
+        }
+
+        sub.ack(rcv_event)
+            .await
+            .context("cannot acknowledge event")?;
     }
+
     Ok(())
 }
 
 async fn start_server(
     auth_user_repository: AuthUserRepository,
     application_repository: ApplicationRepository,
+    redis: RedisClient,
 ) -> Result<(), Error> {
     let auth_port = env::var("APP_PORT")
         .context("APP_PORT is not defined")?
@@ -198,6 +280,7 @@ async fn start_server(
     let _ = rocket::custom(figment)
         .manage(auth_user_repository)
         .manage(application_repository)
+        .manage(redis)
         .mount("/", admin::get_admin_routes())
         .mount("/", authorization::get_authorization_routes())
         .mount("/", account::get_account_routes())

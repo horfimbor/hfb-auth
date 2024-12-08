@@ -38,6 +38,7 @@ pub enum PrivateAuthApplicationEvent {
 #[cfg_attr(feature = "server", derive(Event))]
 #[cfg_attr(feature = "server", composite_state)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
 pub enum AuthApplicationEvent {
     Private(PrivateAuthApplicationEvent),
 }
