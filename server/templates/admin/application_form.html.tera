@@ -1,0 +1,23 @@
+{% extends "admin/base" %}
+{% block title %}Administration{% endblock title %}
+
+{% block content %}
+
+
+{% if error %}
+<h3>{{error}}</h3>
+{% endif %}
+<form action="/admin/new-application" method="post">
+    Create Application
+    <div class="inputBox">
+        <input type="text" required name="name" /> <i>Name</i>
+    </div>
+    <div class="inputBox">
+        <input type="text" required name="host" /> <i>Host</i>
+    </div>
+    <div class="inputBox">
+        <input type="submit" value="Create">
+    </div>
+</form>
+
+{% endblock content %}

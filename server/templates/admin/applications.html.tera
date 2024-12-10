@@ -1,0 +1,22 @@
+{% extends "admin/base" %}
+{% block title %}Administration{% endblock title %}
+
+{% block content %}
+
+
+{% if error %}
+<h3>{{error}}</h3>
+{% endif %}
+
+<ul>
+    {% for app in applications %}
+        <li>{{app}}</li>
+    {% endfor %}
+
+    <div class="links">
+        <a href="#"></a>
+        <a href="/admin/new-application">new app</a>
+    </div>
+</ul>
+
+{% endblock content %}

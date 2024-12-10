@@ -1,0 +1,12 @@
+{% extends "base" %}
+{% block title %}authorize{% endblock title %}
+
+{% block content %}
+<h2>Authorize {{application_name}}</H2>
+<form action="/authorize" method="post">
+    <input type="hidden" name="redirect" value="{{redirect}}"/>
+    <div class="inputBox">
+        <input type="submit" value="accepted">
+    </div>
+</form>
+{% endblock content %}

@@ -1,0 +1,15 @@
+{% extends "admin/base" %}
+{% block title %}Administration{% endblock title %}
+
+{% block content %}
+
+
+{% if error %}
+<h3>{{error}}</h3>
+{% endif %}
+
+<p>
+empty for now
+</p>
+
+{% endblock content %}

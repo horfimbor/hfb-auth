@@ -1,0 +1,25 @@
+{% extends "base" %}
+{% block title %}login{% endblock title %}
+
+{% block content %}
+<h2>Sign In</h2>
+{% if error %}
+<h3>{{error}}</h3>
+{% endif %}
+<form action="/login" method="post">
+    <input type="hidden" name="redirect" value="{{redirect}}"/>
+    <div class="inputBox">
+        <input type="text" required name="email" /> <i>Identifier</i>
+    </div>
+    <div class="inputBox">
+        <input type="password" required name="password" /> <i>Password</i>
+    </div>
+    <div class="links">
+        <a href="#"></a>
+        <a href="/register">Signup</a>
+    </div>
+    <div class="inputBox">
+        <input type="submit" value="Login">
+    </div>
+</form>
+{% endblock content %}

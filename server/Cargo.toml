@@ -1,0 +1,34 @@
+[package]
+name = "hfb-auth-server"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+dotenvy = "0.15"
+eventstore.workspace = true
+jsonwebtoken = "9.3"
+redis.workspace = true
+rocket ={ version = "0.5", features = ["secrets"] }
+rocket_cors = "0.6"
+uuid = { version = "1.8", features = ["v4", "v5"] }
+serde = "1.0"
+serde_json = "1.0"
+hfb-auth-shared= {path = "../shared", features = ["server"]}
+horfimbor-eventsource = {workspace = true}
+argon2 = "0.5"
+url = { version = "2.5", features = ["serde"] }
+futures = "0.3"
+
+[dependencies.rocket_dyn_templates]
+version = "0.2"
+features = ["tera"]
+
+[profile.dev.package.sqlx-macros]
+opt-level = 3
+
+[lints]
+workspace = true

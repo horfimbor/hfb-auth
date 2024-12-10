@@ -1,0 +1,29 @@
+{% extends "base" %}
+{% block title %}register{% endblock title %}
+
+{% block content %}
+<h2>Sign up</h2>
+<form action="/register" method="post">
+    <input type="hidden" name="redirect" value="{{redirect}}"/>
+    <div class="inputBox">
+        <input type="text" required name="email" /> <i>Identifier</i>
+    </div>
+    <div class="inputBox">
+        <input type="text" required name="pseudo" /> <i>Pseudonym</i>
+    </div>
+
+    <div class="inputBox">
+        <input type="password" required name="password" /> <i>Password</i>
+    </div>
+    <div class="inputBox">
+        <input type="password" required name="password_check" /> <i>Password check</i>
+    </div>
+    <div class="inputBox">
+        <input type="submit" value="Register">
+    </div>
+    <div class="links">
+        <a href="#"></a>
+        <a href="/">Sign in</a>
+    </div>
+</form>
+{% endblock content %}
