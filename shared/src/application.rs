@@ -52,6 +52,13 @@ pub struct AuthApplicationState {
     key: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AuthApplicationList{
+    pub id: String,
+    pub name: String,
+    pub host: Host,
+}
+
 impl Default for AuthApplicationState {
     fn default() -> Self {
         Self {

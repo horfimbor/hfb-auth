@@ -6,13 +6,21 @@ use rocket::response::Redirect;
 use rocket::serde::{Deserialize, Serialize};
 use rocket::{Route, State};
 use rocket_dyn_templates::{context, Template};
+use crate::user::User;
 
 pub fn get_authorization_routes() -> Vec<Route> {
     routes![authorize, authorize_form, single_use_token,]
 }
 
+
+
+#[get("/auth/authorize?<redirect>", rank=2)]
+pub async fn authorize_guest(user: User, redirect: RedirectUrl) -> Redirect {
+    todo!();
+}
+
 #[get("/auth/authorize?<redirect>")]
-pub async fn authorize(cookies: &CookieJar<'_>, redirect: RedirectUrl) -> Result<Template, Status> {
+pub async fn authorize(user: User, redirect: RedirectUrl) -> Result<Template, Status> {
     dbg!(&redirect);
 
     todo!();

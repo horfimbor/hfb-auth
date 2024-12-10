@@ -1,8 +1,9 @@
+use anyhow::Context;
 use crate::constants::{APPLICATION_LIST_REDIS_KEY, AUTH_APPLICATION_UUID};
 use crate::user::Admin;
 use crate::ApplicationRepository;
 use eventstore::Client;
-use hfb_auth_shared::application::{AuthApplicationCommand, PrivateAuthApplicationEvent};
+use hfb_auth_shared::application::{AuthApplicationCommand, AuthApplicationList, PrivateAuthApplicationEvent};
 use hfb_auth_shared::AUTH_APPLICATION_STREAM;
 use horfimbor_eventsource::helper::{create_subscription, get_subscription};
 use horfimbor_eventsource::model_key::ModelKey;
@@ -28,9 +29,9 @@ pub async fn list(_admin: Admin, redis: &State<RedisClient>) -> Template {
         .get(APPLICATION_LIST_REDIS_KEY)
         .expect("cannot get data");
 
-    let application_list = match raw_data {
+    let application_list: Vec<AuthApplicationList> = match raw_data {
         None => Vec::new(),
-        Some(list) => list.split("|").map(|s| s.to_string()).collect(),
+        Some(list) => serde_json::from_str(&list).context("cannot deserialize application list in redis").unwrap(),
     };
 
     Template::render(
@@ -43,7 +44,7 @@ pub async fn list(_admin: Admin, redis: &State<RedisClient>) -> Template {
 
 #[get("/admin/application/<id>")]
 pub async fn get(_admin: Admin, id: &str) -> Template {
-    Template::render("admin/application_form", context! {})
+    Template::render("admin/application_update", context! {})
 }
 
 #[post("/admin/update-application/<id>", data = "<application>")]
@@ -61,7 +62,7 @@ pub async fn update(
 
 #[get("/admin/new-application")]
 pub async fn get_create(_admin: Admin) -> Template {
-    Template::render("admin/application_form", context! {})
+    Template::render("admin/application_create", context! {})
 }
 
 #[post("/admin/new-application", data = "<application>")]

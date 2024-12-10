@@ -18,9 +18,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use eventstore::Client as EventstoreClient;
 use futures::future::{try_join_all, BoxFuture};
 use futures::{task, FutureExt};
-use hfb_auth_shared::application::{
-    AuthApplicationEvent, AuthApplicationState, PrivateAuthApplicationEvent,
-};
+use hfb_auth_shared::application::{AuthApplicationEvent, AuthApplicationList, AuthApplicationState, PrivateAuthApplicationEvent};
 use hfb_auth_shared::user::{AuthUserCommand, AuthUserState, UserRole};
 use hfb_auth_shared::{AUTH_APPLICATION_STREAM, AUTH_USER_STREAM};
 use horfimbor_eventsource::cache_db::redis::StateDb;
@@ -40,6 +38,7 @@ use std::env;
 use std::future::Future;
 use std::path::Path;
 use std::time::Duration;
+use serde_json::json;
 use url::quirks::password;
 use url::Host;
 use uuid::Uuid;
@@ -189,14 +188,14 @@ async fn listen_applications(event_db: EventstoreClient, redis: RedisClient) -> 
         .get(APPLICATION_LIST_REDIS_KEY)
         .context("cannot get data")?;
 
-    let mut application_list = match raw_data {
+    let mut application_list : Vec<AuthApplicationList> = match raw_data {
         None => Vec::new(),
-        Some(list) => list.split("|").map(|s| s.to_string()).collect(),
+        Some(list) => serde_json::from_str(&list).context("cannot deserialize application list in redis")?,
     };
     loop {
         let rcv_event = sub.next().await.expect("cannot get next event");
 
-        let event = match rcv_event.event.as_ref() {
+        let full_event = match rcv_event.event.as_ref() {
             None => {
                 continue;
             }
@@ -205,7 +204,7 @@ async fn listen_applications(event_db: EventstoreClient, redis: RedisClient) -> 
 
         // FIXME change this metadata check
         let metadata: Metadata =
-            serde_json::from_slice(event.custom_metadata.as_ref()).context("cannot deserialize")?;
+            serde_json::from_slice(full_event.custom_metadata.as_ref()).context("cannot deserialize")?;
 
         if !metadata.is_event() {
             sub.ack(rcv_event)
@@ -215,16 +214,20 @@ async fn listen_applications(event_db: EventstoreClient, redis: RedisClient) -> 
             continue;
         }
 
-        let event = event
+        let event = full_event
             .as_json::<AuthApplicationEvent>()
             .expect("cannot deserialize");
 
         match event {
             AuthApplicationEvent::Private(prv) => match prv {
                 PrivateAuthApplicationEvent::Created { name, host, key } => {
-                    application_list.push(name);
+                    application_list.push(AuthApplicationList{
+                        id: full_event.id.to_string(),
+                        name,
+                        host,
+                    });
 
-                    let data = application_list.clone().join("|");
+                    let data = json!(application_list.clone()).to_string();
 
                     connection
                         .set(APPLICATION_LIST_REDIS_KEY, data)

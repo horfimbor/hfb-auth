@@ -3,4 +3,4 @@ pub const COOKIE_ERROR: &str = "SPACE_X";
 pub const AUTH_USER_UUID: &str = "auth-user-uuid";
 pub const AUTH_APPLICATION_UUID: &str = "auth-apps-uuid";
 
-pub const APPLICATION_LIST_REDIS_KEY: &str = "application_list";
+pub const APPLICATION_LIST_REDIS_KEY: &str = "app_list";

@@ -10,7 +10,7 @@
 
 <ul>
     {% for app in applications %}
-        <li>{{app}}</li>
+        <li><a href="/admin/application/{{app.id}}">{{app.name}} ( {{app.host}} )</a></li>
     {% endfor %}
 
     <div class="links">
