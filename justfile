@@ -1,15 +1,19 @@
 set shell := ["bash", "-uc"]
 set dotenv-load
 
-start:
+dc-start:
     docker compose up -d
     firefox $APP_HOST
 
-stop:
+dc-stop:
     docker compose down
 
+dc-reset:
+    docker compose down -v
+    just dc-start
 
-watch-server:
+
+watch:
     export $(grep -v '^#' .env | xargs) && \
             cargo watch -w server -w shared  \
             -x "run -p hfb-auth-server service"

@@ -1,4 +1,4 @@
-use crate::constants::{AUTH_USER_UUID, COOKIE_SESSION};
+use crate::constants::AUTH_USER_UUID;
 use crate::public::helper;
 use crate::{public, AuthUserRepository};
 use argon2::password_hash::rand_core::OsRng;
@@ -15,13 +15,7 @@ use rocket_dyn_templates::{context, Template};
 
 #[get("/register")]
 pub async fn register(cookies: &CookieJar<'_>) -> Template {
-    let _data = cookies.get(COOKIE_SESSION);
-    Template::render(
-        "register",
-        context! {
-            redirect: ""
-        },
-    )
+    Template::render("register", context! {})
 }
 
 #[derive(FromForm, Debug)]
@@ -39,8 +33,6 @@ pub async fn register_form(
     register: Form<Register<'_>>,
     cookies: &CookieJar<'_>,
 ) -> Result<Redirect, Status> {
-    let _data = cookies.get(COOKIE_SESSION);
-
     let key = ModelKey::new_uuid_v8(AUTH_USER_STREAM, AUTH_USER_UUID, register.email);
 
     if register.password != register.password_check {

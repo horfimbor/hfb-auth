@@ -1,63 +1,107 @@
+use crate::constants::AUTH_APPLICATION_UUID;
 use crate::public::connexion;
+use crate::session::{base_host, get_session, set_session};
 use crate::url_parsing::RedirectUrl;
+use crate::user::User;
+use crate::ApplicationRepository;
+use hfb_auth_shared::application::AuthApplicationState;
+use hfb_auth_shared::AUTH_APPLICATION_STREAM;
+use horfimbor_eventsource::model_key::ModelKey;
+use horfimbor_eventsource::repository::Repository;
 use rocket::form::Form;
+use rocket::http::uri::{Origin, Uri};
 use rocket::http::{CookieJar, Status};
 use rocket::response::Redirect;
 use rocket::serde::{Deserialize, Serialize};
 use rocket::{Route, State};
 use rocket_dyn_templates::{context, Template};
-use crate::user::User;
+use url::Url;
 
 pub fn get_authorization_routes() -> Vec<Route> {
-    routes![authorize, authorize_form, single_use_token,]
+    routes![authorize, authorize_guest, authorize_form, single_use_token,]
 }
 
+#[get("/auth/authorize?<redirect>", rank = 1)]
+pub async fn authorize(
+    cookies: &CookieJar<'_>,
+    user: User,
+    redirect: RedirectUrl,
+    repository: &State<ApplicationRepository>,
+) -> Result<Template, Status> {
 
+    let key = ModelKey::new_uuid_v8(
+        AUTH_APPLICATION_STREAM,
+        AUTH_APPLICATION_UUID,
+        redirect.url().as_str(),
+    );
+    let application = repository.get_model(&key).await.unwrap();
 
-#[get("/auth/authorize?<redirect>", rank=2)]
-pub async fn authorize_guest(user: User, redirect: RedirectUrl) -> Redirect {
-    todo!();
+    if *application.state() == AuthApplicationState::default() {
+        return Err(Status::NotFound);
+    }
+
+    let mut session = get_session(cookies);
+    session.set_redirect_url(redirect.url());
+    session.set_application(Some(key));
+    set_session(cookies, session);
+
+    let accounts:Vec<&str> = vec![];
+
+    Ok(Template::render(
+        "authorize",
+        context! {
+            application_name: application.state().name(),
+            accounts: accounts,
+        },
+    ))
 }
 
-#[get("/auth/authorize?<redirect>")]
-pub async fn authorize(user: User, redirect: RedirectUrl) -> Result<Template, Status> {
-    dbg!(&redirect);
+#[get("/auth/authorize?<redirect>", rank = 2)]
+pub async fn authorize_guest(
+    cookies: &CookieJar<'_>,
+    redirect: RedirectUrl,
+    uri: &Origin<'_>,
+) -> Result<Redirect, Status> {
+    let mut session = get_session(cookies);
+    let redirect = format!("{}{}", base_host(), uri.to_string());
+    let url = Url::parse(&redirect).map_err(|e| {
+        dbg!(e);
+        Status::BadRequest
+    })?;
+    session.set_redirect_url(url);
+    dbg!(&session.redirect_url().to_string());
+    set_session(cookies, session);
 
-    todo!();
-    //
-    // let application = maria_db
-    //     .get_application_by_host(redirect.host())
-    //     .await
-    //     .map_err(|e| {
-    //         dbg!(e);
-    //         Status::InternalServerError
-    //     })?
-    //     .ok_or(Status::NotFound)?;
-    //
-    // let data = cookies.get(COOKIE_SESSION);
-    // match data {
-    //     None => Ok(connexion::render_login(Some(redirect.url()), None)),
-    //     Some(_) => Ok(Template::render(
-    //         "authorize",
-    //         context! {
-    //             application_name: application.name(),
-    //             redirect: redirect.url().as_str()
-    //         },
-    //     )),
-    // }
+    Ok(Redirect::to(uri!("/login")))
 }
 
 #[derive(FromForm, Debug)]
 pub struct Authorize {
-    redirect: RedirectUrl,
+    account: String,
+    new_account: String,
 }
 
 #[post("/auth/authorize", data = "<authorize>")]
 pub async fn authorize_form(
     cookies: &CookieJar<'_>,
     authorize: Form<Authorize>,
+    repository_apps: &State<ApplicationRepository>,
 ) -> Result<Redirect, Status> {
-    todo!();
+
+    dbg!(authorize);
+
+    let mut session = get_session(cookies);
+    let key = match session.application(){
+        None => {
+            return Err(Status::NotFound)
+        }
+        Some(k) => {k}
+    };
+
+    let application = repository_apps.get_model(key).await.unwrap();
+
+
+    todo!("authorize");
     // let application = maria_db
     //     .get_application_by_host(authorize.clone().redirect.host)
     //     .await
@@ -66,14 +110,14 @@ pub async fn authorize_form(
     //
     // let data = cookies.get(COOKIE_SESSION).ok_or(Status::NotFound)?;
     //
-    // let account = maria_db
+    // let user = maria_db
     //     .get_user_by_id(data.value())
     //     .await
     //     .map_err(|_| Status::InternalServerError)?
     //     .ok_or(Status::NotFound)?;
     //
     // let id = maria_db
-    //     .new_one_time_token(&application, &account)
+    //     .new_one_time_token(&application, &user)
     //     .await
     //     .map_err(|_| Status::InternalServerError)?;
     //

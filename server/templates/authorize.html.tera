@@ -2,11 +2,24 @@
 {% block title %}authorize{% endblock title %}
 
 {% block content %}
-<h2>Authorize {{application_name}}</H2>
-<form action="/authorize" method="post">
-    <input type="hidden" name="redirect" value="{{redirect}}"/>
+<h2>Account for {{application_name}}</H2>
+<form action="/auth/authorize" method="post">
+    {% for account in accounts %}
     <div class="inputBox">
-        <input type="submit" value="accepted">
+        <input id="input_{{account}}" type="radio" name="account" value="{{account}}" />
+        <label for="input_{{account}}"> {{account}} : </label>
+    </div>
+    {% endfor %}
+    <div class="inputBox">
+        <input id="new_element_radio" type="radio" name="account" value="_" />
+        <label for="new_element_radio"> new account : </label>
+        <div class="new_element_block">
+            <input type="text" id="new" name="new_account">
+            <i>New application name</i>
+        </div>
+    </div>
+    <div class="inputBox">
+        <input type="submit" value="create">
     </div>
 </form>
 {% endblock content %}

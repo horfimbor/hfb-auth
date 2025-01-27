@@ -1,6 +1,7 @@
-use crate::constants::{AUTH_USER_UUID, COOKIE_ERROR, COOKIE_SESSION};
+use crate::constants::AUTH_USER_UUID;
+use crate::session::{get_session, remove_session, set_session, LoggedInUser, SessionError};
 use crate::url_parsing::RedirectUrl;
-use crate::{account, admin, authorization, public, AuthUserRepository};
+use crate::{admin, authorization, public, user, AuthUserRepository};
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use hfb_auth_shared::user::{AuthUserCommand, AuthUserState};
 use hfb_auth_shared::AUTH_USER_STREAM;
@@ -15,24 +16,20 @@ use url::Url;
 
 #[get("/login")]
 pub async fn index(cookies: &CookieJar<'_>) -> Template {
-    let error: Option<String> = cookies
-        .get_private(COOKIE_ERROR)
-        .map(|v| v.value().to_string());
-    cookies.remove_private(COOKIE_ERROR);
+    let mut error = None;
+    let mut session = get_session(cookies);
+    if let Some(e) = session.error() {
+        error = Some(e.clone());
+        session.set_error(None);
+        set_session(cookies, session.clone());
+    }
+
     match error {
         None => render_login(None, None),
-        Some(str) => {
-            let mut s = str.split('|');
-            let error = s.next();
-            let redirect = s.next().map(|v| {
-                if v.is_empty() {
-                    None
-                } else {
-                    Some(Url::parse(v).unwrap())
-                }
-            });
-            render_login(redirect.flatten(), error)
-        }
+        Some(error) => render_login(
+            Some(session.redirect_url().clone()),
+            Some(error.message.as_str()),
+        ),
     }
 }
 
@@ -41,7 +38,6 @@ fn render_login(redirect: Option<Url>, error: Option<&str>) -> Template {
     Template::render(
         "login",
         context! {
-            redirect: redirect,
             error: error
         },
     )
@@ -51,7 +47,6 @@ fn render_login(redirect: Option<Url>, error: Option<&str>) -> Template {
 pub struct Login<'r> {
     email: &'r str,
     password: &'r str,
-    redirect: &'r str,
 }
 
 #[post("/login", data = "<login>")]
@@ -99,35 +94,30 @@ pub async fn login(
             redirect_failed_login(&login, cookies, "Failed to save login")
         })?;
 
-    dbg!(&login.redirect);
+    let mut session = get_session(cookies);
+    session.set_user(Some(LoggedInUser {
+        user_id: key.format(),
+    }));
+    set_session(cookies, session.clone());
 
-    let mut cookie = Cookie::new(COOKIE_SESSION, key.format());
-    cookie.set_same_site(Some(SameSite::Lax));
-    cookies.add_private(cookie);
-
-    if !login.redirect.is_empty() {
-        let redirect = login.redirect.to_string();
-        dbg!(&redirect);
-        return Ok(Redirect::temporary(uri!(authorization::authorize(
-            redirect
-        ))));
-    }
-
-    Ok(Redirect::to(uri!(account::index)))
+    Ok(Redirect::to(format!("{}", session.redirect_url())))
 }
 
 fn redirect_failed_login(login: &Form<Login>, cookies: &CookieJar, error: &str) -> Redirect {
-    let mut cookie = Cookie::new(COOKIE_ERROR, format!("{}|{}", error, login.redirect));
-    cookie.set_same_site(Some(SameSite::Lax));
+    let mut cookie = get_session(cookies);
 
-    cookies.add_private(cookie);
+    cookie.set_error(Some(SessionError {
+        message: error.to_string(),
+    }));
+
+    set_session(cookies, cookie);
 
     Redirect::to(uri!(public::index))
 }
 
 #[get("/logout")]
 pub async fn logout(cookies: &CookieJar<'_>) -> Redirect {
-    cookies.remove(COOKIE_SESSION);
+    remove_session(cookies);
 
     Redirect::to(uri!(public::index))
 }

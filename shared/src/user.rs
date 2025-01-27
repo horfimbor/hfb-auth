@@ -49,7 +49,7 @@ pub enum AuthUserCommand {
 pub enum UserError {
     #[error("Login failed")]
     LoginFail,
-    #[error("An account already exists")]
+    #[error("An user already exists")]
     AlreadyExists,
     #[error("User has already the role")]
     SameRole,
@@ -94,17 +94,17 @@ impl AuthUserState {
     fn play_private_event(&mut self, event: &PrvAuthUserEvent) {
         match event {
             PrvAuthUserEvent::Created { date } => {
-                self.created_at = date.clone();
+                self.created_at = *date;
             }
             PrvAuthUserEvent::PasswordChanged {
                 password_hash,
                 date,
             } => {
                 self.password_hash = Some(password_hash.clone());
-                self.password_change = date.clone();
+                self.password_change = *date;
             }
             PrvAuthUserEvent::LoggedIn(date) => {
-                self.last_login = Some(date.clone());
+                self.last_login = Some(*date);
             }
             PrvAuthUserEvent::ChangeRole(role) => self.role = role.clone(),
         }

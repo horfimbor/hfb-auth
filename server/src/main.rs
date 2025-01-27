@@ -1,10 +1,10 @@
 #![allow(unused)]
 
-pub mod account;
 pub mod admin;
 mod authorization;
 mod constants;
 pub mod public;
+mod session;
 mod url_parsing;
 mod user;
 
@@ -18,7 +18,9 @@ use clap::{Parser, Subcommand, ValueEnum};
 use eventstore::Client as EventstoreClient;
 use futures::future::{try_join_all, BoxFuture};
 use futures::{task, FutureExt};
-use hfb_auth_shared::application::{AuthApplicationEvent, AuthApplicationList, AuthApplicationState, PrivateAuthApplicationEvent};
+use hfb_auth_shared::application::{
+    AuthApplicationEvent, AuthApplicationList, AuthApplicationState, PrivateAuthApplicationEvent,
+};
 use hfb_auth_shared::user::{AuthUserCommand, AuthUserState, UserRole};
 use hfb_auth_shared::{AUTH_APPLICATION_STREAM, AUTH_USER_STREAM};
 use horfimbor_eventsource::cache_db::redis::StateDb;
@@ -34,11 +36,11 @@ use rocket::tokio::time::sleep;
 use rocket::{tokio, Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use rocket_dyn_templates::{context, Template};
+use serde_json::json;
 use std::env;
 use std::future::Future;
 use std::path::Path;
 use std::time::Duration;
-use serde_json::json;
 use url::quirks::password;
 use url::Host;
 use uuid::Uuid;
@@ -188,9 +190,11 @@ async fn listen_applications(event_db: EventstoreClient, redis: RedisClient) -> 
         .get(APPLICATION_LIST_REDIS_KEY)
         .context("cannot get data")?;
 
-    let mut application_list : Vec<AuthApplicationList> = match raw_data {
+    let mut application_list: Vec<AuthApplicationList> = match raw_data {
         None => Vec::new(),
-        Some(list) => serde_json::from_str(&list).context("cannot deserialize application list in redis")?,
+        Some(list) => {
+            serde_json::from_str(&list).context("cannot deserialize application list in redis")?
+        }
     };
     loop {
         let rcv_event = sub.next().await.expect("cannot get next event");
@@ -203,8 +207,8 @@ async fn listen_applications(event_db: EventstoreClient, redis: RedisClient) -> 
         };
 
         // FIXME change this metadata check
-        let metadata: Metadata =
-            serde_json::from_slice(full_event.custom_metadata.as_ref()).context("cannot deserialize")?;
+        let metadata: Metadata = serde_json::from_slice(full_event.custom_metadata.as_ref())
+            .context("cannot deserialize")?;
 
         if !metadata.is_event() {
             sub.ack(rcv_event)
@@ -221,7 +225,7 @@ async fn listen_applications(event_db: EventstoreClient, redis: RedisClient) -> 
         match event {
             AuthApplicationEvent::Private(prv) => match prv {
                 PrivateAuthApplicationEvent::Created { name, host, key } => {
-                    application_list.push(AuthApplicationList{
+                    application_list.push(AuthApplicationList {
                         id: full_event.id.to_string(),
                         name,
                         host,
@@ -286,7 +290,7 @@ async fn start_server(
         .manage(redis)
         .mount("/", admin::get_admin_routes())
         .mount("/", authorization::get_authorization_routes())
-        .mount("/", account::get_account_routes())
+        .mount("/", user::get_user_routes())
         .mount("/", public::get_routes())
         .mount("/", FileServer::from(relative!("web")))
         .attach(cors)

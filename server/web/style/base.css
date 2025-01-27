@@ -132,6 +132,14 @@ section {
                     font-weight: 500;
                     font-size: 1em;
 
+                    &[type="submit"]:active {
+                        opacity: 0.6;
+                    }
+
+                    &[type="radio"]{
+                        width: 10%;
+                    }
+
                     &:focus,
                     &:valid{
                         background: #333;
@@ -173,8 +181,13 @@ section {
     
 }
 
-input[type="submit"]:active {
-    opacity: 0.6;
+
+.new_element_block{
+    display: none;
+}
+
+#new_element_radio:checked ~ .new_element_block{
+    display: block;
 }
 
 @media (max-width: 900px) {

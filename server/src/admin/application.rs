@@ -1,9 +1,11 @@
-use anyhow::Context;
 use crate::constants::{APPLICATION_LIST_REDIS_KEY, AUTH_APPLICATION_UUID};
 use crate::user::Admin;
 use crate::ApplicationRepository;
+use anyhow::Context;
 use eventstore::Client;
-use hfb_auth_shared::application::{AuthApplicationCommand, AuthApplicationList, PrivateAuthApplicationEvent};
+use hfb_auth_shared::application::{
+    AuthApplicationCommand, AuthApplicationList, PrivateAuthApplicationEvent,
+};
 use hfb_auth_shared::AUTH_APPLICATION_STREAM;
 use horfimbor_eventsource::helper::{create_subscription, get_subscription};
 use horfimbor_eventsource::model_key::ModelKey;
@@ -13,7 +15,7 @@ use rocket::form::Form;
 use rocket::http::CookieJar;
 use rocket::State;
 use rocket_dyn_templates::{context, Template};
-use url::Host;
+use url::{Host, Url};
 
 #[derive(FromForm, Debug)]
 pub struct Application<'r> {
@@ -31,7 +33,9 @@ pub async fn list(_admin: Admin, redis: &State<RedisClient>) -> Template {
 
     let application_list: Vec<AuthApplicationList> = match raw_data {
         None => Vec::new(),
-        Some(list) => serde_json::from_str(&list).context("cannot deserialize application list in redis").unwrap(),
+        Some(list) => serde_json::from_str(&list)
+            .context("cannot deserialize application list in redis")
+            .unwrap(),
     };
 
     Template::render(
@@ -74,7 +78,7 @@ pub async fn post_create(
     let key = ModelKey::new_uuid_v8(
         AUTH_APPLICATION_STREAM,
         AUTH_APPLICATION_UUID,
-        application.name,
+        application.host,
     );
 
     let model = repository
@@ -82,7 +86,7 @@ pub async fn post_create(
             &key,
             AuthApplicationCommand::Create {
                 name: application.name.to_string(),
-                host: Host::parse(application.host).unwrap(),
+                host: Url::parse(application.host).unwrap(),
             },
             None,
         )

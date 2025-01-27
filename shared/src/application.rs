@@ -6,9 +6,8 @@ use horfimbor_eventsource::{Dto, State};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::iter;
-use std::net::Ipv4Addr;
 use thiserror::Error;
-use url::Host;
+use url::Url;
 
 #[cfg(feature = "server")]
 use crate::AUTH_APPLICATION_EVENT;
@@ -17,7 +16,7 @@ use crate::AUTH_APPLICATION_EVENT;
 #[cfg_attr(feature = "server", state(AUTH_APPLICATION_EVENT))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum AuthApplicationCommand {
-    Create { name: String, host: Host },
+    Create { name: String, host: Url },
     RegenerateKey,
 }
 
@@ -27,7 +26,7 @@ pub enum AuthApplicationCommand {
 pub enum PrivateAuthApplicationEvent {
     Created {
         name: String,
-        host: Host,
+        host: Url,
         key: String,
     },
     KeyChanged {
@@ -48,22 +47,22 @@ pub enum AuthApplicationEvent {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Eq)]
 pub struct AuthApplicationState {
     name: String,
-    host: Host,
+    host: Url,
     key: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct AuthApplicationList{
+pub struct AuthApplicationList {
     pub id: String,
     pub name: String,
-    pub host: Host,
+    pub host: Url,
 }
 
 impl Default for AuthApplicationState {
     fn default() -> Self {
         Self {
             name: "".to_string(),
-            host: Host::Ipv4(Ipv4Addr::new(127, 0, 0, 1)),
+            host: Url::parse("https://aedius.fr").expect("default url for application is invalid"),
             key: "".to_string(),
         }
     }
@@ -88,6 +87,10 @@ impl AuthApplicationState {
         let mut rng = rand::thread_rng();
         let one_char = || CHARSET[rng.gen_range(0..CHARSET.len())] as char;
         iter::repeat_with(one_char).take(40).collect()
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 }
 

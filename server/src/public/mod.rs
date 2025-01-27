@@ -2,8 +2,8 @@ pub mod connexion;
 pub mod helper;
 mod registration;
 
-use crate::account;
-use crate::constants::{COOKIE_ERROR, COOKIE_SESSION};
+use crate::session::get_session;
+use crate::user;
 use hfb_auth_shared::AUTH_USER_STREAM;
 use horfimbor_eventsource::model_key::ModelKey;
 use jsonwebtoken::{encode, EncodingKey, Header};
@@ -30,12 +30,10 @@ pub fn get_routes() -> Vec<Route> {
 
 #[get("/")]
 async fn index(cookies: &CookieJar<'_>) -> Redirect {
-    let session = cookies.get_private(COOKIE_SESSION);
+    let session = get_session(cookies);
 
-    dbg!(uri!(index()));
-
-    match session {
+    match session.user() {
         None => Redirect::to(uri!(connexion::index())),
-        Some(data) => Redirect::to(uri!(account::index())),
+        Some(data) => Redirect::to(uri!(user::index())),
     }
 }

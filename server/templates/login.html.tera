@@ -7,7 +7,6 @@
 <h3>{{error}}</h3>
 {% endif %}
 <form action="/login" method="post">
-    <input type="hidden" name="redirect" value="{{redirect}}"/>
     <div class="inputBox">
         <input type="text" required name="email" /> <i>Identifier</i>
     </div>

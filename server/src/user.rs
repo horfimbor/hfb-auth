@@ -1,14 +1,33 @@
-use crate::constants::COOKIE_SESSION;
+use crate::admin::application;
+use crate::session::get_session;
 use crate::AuthUserRepository;
 use hfb_auth_shared::user::{AuthUserState, UserRole};
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::{ModelWithPosition, Repository};
 use horfimbor_eventsource::EventSourceError;
+use rocket::http::CookieJar;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome};
-use rocket::Request;
+use rocket::{Request, Route};
+use rocket_dyn_templates::{context, Template};
 use std::convert::Infallible;
 use std::str::RMatches;
+
+pub fn get_user_routes() -> Vec<Route> {
+    routes![index]
+}
+
+#[get("/me")]
+pub async fn index(user: User) -> Template {
+    Template::render(
+        "user",
+        context! {
+            account: user.state(),
+            is_admin: user.state().is_admin(),
+            uri_applications: uri!(application::list)
+        },
+    )
+}
 
 pub struct User {
     state: AuthUserState,
@@ -45,13 +64,9 @@ impl<'r> FromRequest<'r> for User {
     type Error = UserErr;
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        if let Some(key) = request
-            .cookies()
-            .get_private(COOKIE_SESSION)
-            .map(|v| v.value().to_string())
-        {
+        if let Some(data) = get_session(request.cookies()).user() {
             if let Some(repo) = request.rocket().state::<AuthUserRepository>() {
-                match load(key, repo, UserRole::None).await {
+                match load(data.user_id.clone(), repo, UserRole::None).await {
                     Ok(state) => Outcome::Success(User { state }),
                     Err(e) => Outcome::Error(e),
                 }
@@ -59,7 +74,7 @@ impl<'r> FromRequest<'r> for User {
                 Outcome::Error((Status::InternalServerError, UserErr::NoRepository))
             }
         } else {
-            Outcome::Error((Status::Forbidden, UserErr::NoCookie))
+            Outcome::Forward(Default::default())
         }
     }
 }
@@ -69,13 +84,9 @@ impl<'r> FromRequest<'r> for Admin {
     type Error = UserErr;
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        if let Some(key) = request
-            .cookies()
-            .get_private(COOKIE_SESSION)
-            .map(|v| v.value().to_string())
-        {
+        if let Some(data) = get_session(request.cookies()).user() {
             if let Some(repo) = request.rocket().state::<AuthUserRepository>() {
-                match load(key, repo, UserRole::Admin).await {
+                match load(data.user_id.clone(), repo, UserRole::Admin).await {
                     Ok(state) => Outcome::Success(Admin { state }),
                     Err(e) => Outcome::Error(e),
                 }
