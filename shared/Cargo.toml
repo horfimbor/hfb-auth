@@ -7,13 +7,13 @@ edition = "2021"
 horfimbor-eventsource = { workspace = true, optional = true }
 serde.workspace = true
 thiserror.workspace = true
-auth-public-event = {path = "../auth-public-event"}
+public-user-event = {workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 url = { version= "2.5", features = ["serde"] }
 rand = "0.8"
 
 [features]
-server = ["horfimbor-eventsource", "auth-public-event/server"]
+server = ["horfimbor-eventsource", "public-user-event/server"]
 
 [lints]
 workspace = true

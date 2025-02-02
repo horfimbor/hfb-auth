@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = [ "auth-public-event",
+members = ["public-user-event",
     "server", "shared",
 ]
 
@@ -12,6 +12,9 @@ serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
 eventstore = "3.0"
 redis= { version = "0.27", features = ["tokio-rustls-comp"] }
+
+# TODO move out
+public-user-event = {path = "public-user-event" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

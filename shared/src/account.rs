@@ -3,7 +3,7 @@ use horfimbor_eventsource::horfimbor_eventsource_derive::{Command, Event};
 #[cfg(feature = "server")]
 use horfimbor_eventsource::{Command, CommandName, Event, EventName};
 
-use auth_public_event::PubAuthEvent;
+use public_user_event::PubUserEvent;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "server")]
@@ -30,5 +30,5 @@ pub enum PubAuthAccountEvent {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum AuthAccountEvent {
     Private(PubAuthAccountEvent),
-    Public(PubAuthEvent),
+    Public(PubUserEvent),
 }

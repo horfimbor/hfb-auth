@@ -3,7 +3,7 @@ use crate::public::connexion;
 use crate::session::{base_host, get_session, set_session};
 use crate::url_parsing::RedirectUrl;
 use crate::user::User;
-use crate::ApplicationRepository;
+use crate::{ApplicationRepository, AuthUserRepository};
 use hfb_auth_shared::application::AuthApplicationState;
 use hfb_auth_shared::AUTH_APPLICATION_STREAM;
 use horfimbor_eventsource::model_key::ModelKey;
@@ -28,7 +28,6 @@ pub async fn authorize(
     redirect: RedirectUrl,
     repository: &State<ApplicationRepository>,
 ) -> Result<Template, Status> {
-
     let key = ModelKey::new_uuid_v8(
         AUTH_APPLICATION_STREAM,
         AUTH_APPLICATION_UUID,
@@ -45,7 +44,7 @@ pub async fn authorize(
     session.set_application(Some(key));
     set_session(cookies, session);
 
-    let accounts:Vec<&str> = vec![];
+    let accounts: Vec<&str> = vec![];
 
     Ok(Template::render(
         "authorize",
@@ -86,44 +85,30 @@ pub async fn authorize_form(
     cookies: &CookieJar<'_>,
     authorize: Form<Authorize>,
     repository_apps: &State<ApplicationRepository>,
+    repository_user: &State<AuthUserRepository>,
+    user: User,
 ) -> Result<Redirect, Status> {
-
-    dbg!(authorize);
+    dbg!(&authorize);
 
     let mut session = get_session(cookies);
-    let key = match session.application(){
-        None => {
-            return Err(Status::NotFound)
-        }
-        Some(k) => {k}
+    let Some(app_key) = session.application() else {
+        return Err(Status::NotFound);
     };
 
-    let application = repository_apps.get_model(key).await.unwrap();
+    let application = repository_apps.get_model(app_key).await.unwrap();
+    let user = repository_user.get_model(&user.data().user_id).await.unwrap();
 
+    if authorize.account.is_empty(){
+        todo!("create account");
+    }else{
+        todo!("load account")
+    }
 
-    todo!("authorize");
-    // let application = maria_db
-    //     .get_application_by_host(authorize.clone().redirect.host)
-    //     .await
-    //     .map_err(|_| Status::InternalServerError)?
-    //     .ok_or(Status::NotFound)?;
-    //
-    // let data = cookies.get(COOKIE_SESSION).ok_or(Status::NotFound)?;
-    //
-    // let user = maria_db
-    //     .get_user_by_id(data.value())
-    //     .await
-    //     .map_err(|_| Status::InternalServerError)?
-    //     .ok_or(Status::NotFound)?;
-    //
-    // let id = maria_db
-    //     .new_one_time_token(&application, &user)
-    //     .await
-    //     .map_err(|_| Status::InternalServerError)?;
-    //
+    todo!("generate one_time");
+
     // Ok(Redirect::to(format!(
-    //     "{}/auth?token={id}",
-    //     authorize.redirect.url
+    //     "{}/auth?token={one_time}",
+    //     application.state().host()
     // )))
 }
 

@@ -92,6 +92,11 @@ impl AuthApplicationState {
     pub fn name(&self) -> &str {
         &self.name
     }
+
+
+    pub fn host(&self) -> &Url {
+        &self.host
+    }
 }
 
 #[cfg(feature = "server")]

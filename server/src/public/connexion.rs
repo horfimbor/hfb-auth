@@ -3,7 +3,7 @@ use crate::session::{get_session, remove_session, set_session, LoggedInUser, Ses
 use crate::url_parsing::RedirectUrl;
 use crate::{admin, authorization, public, user, AuthUserRepository};
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
-use hfb_auth_shared::user::{AuthUserCommand, AuthUserState};
+use hfb_auth_shared::user::{UserCommand, UserState};
 use hfb_auth_shared::AUTH_USER_STREAM;
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::Repository;
@@ -67,7 +67,7 @@ pub async fn login(
 
     let user = model.state();
 
-    if *user == AuthUserState::default() {
+    if *user == UserState::default() {
         return Err(redirect_failed_login(&login, cookies, "Login failed"));
     }
 
@@ -86,8 +86,8 @@ pub async fn login(
         .verify_password(login.password.as_ref(), &parsed_hash)
         .is_ok());
 
-    auth_user_repository
-        .add_command(&key, AuthUserCommand::Login, None)
+    let user = auth_user_repository
+        .add_command(&key, UserCommand::Login, None)
         .await
         .map_err(|e| {
             dbg!(e);
@@ -96,8 +96,11 @@ pub async fn login(
 
     let mut session = get_session(cookies);
     session.set_user(Some(LoggedInUser {
-        user_id: key.format(),
+        user_id: key,
+        pseudo: user.pseudo().to_string(),
+        is_admin: user.is_admin(),
     }));
+
     set_session(cookies, session.clone());
 
     Ok(Redirect::to(format!("{}", session.redirect_url())))

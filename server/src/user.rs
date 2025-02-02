@@ -1,7 +1,7 @@
 use crate::admin::application;
-use crate::session::get_session;
+use crate::session::{get_session, LoggedInUser};
 use crate::AuthUserRepository;
-use hfb_auth_shared::user::{AuthUserState, UserRole};
+use hfb_auth_shared::user::{UserState, UserRole};
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::{ModelWithPosition, Repository};
 use horfimbor_eventsource::EventSourceError;
@@ -22,57 +22,40 @@ pub async fn index(user: User) -> Template {
     Template::render(
         "user",
         context! {
-            account: user.state(),
-            is_admin: user.state().is_admin(),
+            account: user.data(),
+            is_admin: user.data().is_admin,
             uri_applications: uri!(application::list)
         },
     )
 }
 
 pub struct User {
-    state: AuthUserState,
+    data: LoggedInUser,
 }
 
 impl User {
-    pub fn state(&self) -> &AuthUserState {
-        &self.state
+    pub fn data(&self) -> &LoggedInUser {
+        &self.data
     }
 }
 
 pub struct Admin {
-    state: AuthUserState,
+    data: LoggedInUser,
 }
 
 impl Admin {
-    pub fn state(&self) -> &AuthUserState {
-        &self.state
+    pub fn data(&self) -> &LoggedInUser {
+        &self.data
     }
-}
-
-#[derive(Debug)]
-pub enum UserErr {
-    NoCookie,
-    NoRepository,
-    CannotParseModelKey,
-    NotFound,
-    DBError,
-    AccessRefused,
 }
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for User {
-    type Error = UserErr;
+    type Error = ();
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         if let Some(data) = get_session(request.cookies()).user() {
-            if let Some(repo) = request.rocket().state::<AuthUserRepository>() {
-                match load(data.user_id.clone(), repo, UserRole::None).await {
-                    Ok(state) => Outcome::Success(User { state }),
-                    Err(e) => Outcome::Error(e),
-                }
-            } else {
-                Outcome::Error((Status::InternalServerError, UserErr::NoRepository))
-            }
+            Outcome::Success(User { data: data.clone() })
         } else {
             Outcome::Forward(Default::default())
         }
@@ -81,51 +64,16 @@ impl<'r> FromRequest<'r> for User {
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for Admin {
-    type Error = UserErr;
+    type Error = ();
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         if let Some(data) = get_session(request.cookies()).user() {
-            if let Some(repo) = request.rocket().state::<AuthUserRepository>() {
-                match load(data.user_id.clone(), repo, UserRole::Admin).await {
-                    Ok(state) => Outcome::Success(Admin { state }),
-                    Err(e) => Outcome::Error(e),
-                }
-            } else {
-                Outcome::Error((Status::InternalServerError, UserErr::NoRepository))
+            match data.is_admin {
+                true => Outcome::Success(Admin { data: data.clone() }),
+                false => Outcome::Forward(Default::default()),
             }
         } else {
-            Outcome::Error((Status::Forbidden, UserErr::NoCookie))
+            Outcome::Forward(Default::default())
         }
-    }
-}
-
-async fn load(
-    key: String,
-    repo: &AuthUserRepository,
-    role: UserRole,
-) -> Result<AuthUserState, (Status, UserErr)> {
-    let mk: Result<ModelKey, _> = ModelKey::try_from(key.as_str());
-    match mk {
-        Ok(mk) => {
-            let user = repo.get_model(&mk).await;
-
-            match user {
-                Ok(u) => match role {
-                    UserRole::Admin => {
-                        if u.state().is_admin() {
-                            Ok(u.state().clone())
-                        } else {
-                            Err((Status::Forbidden, UserErr::AccessRefused))
-                        }
-                    }
-                    UserRole::None => Ok(u.state().clone()),
-                },
-                Err(err) => match err {
-                    EventSourceError::Uuid(_) => Err((Status::NotFound, UserErr::DBError)),
-                    _ => Err((Status::InternalServerError, UserErr::NoRepository)),
-                },
-            }
-        }
-        Err(_) => Err((Status::InternalServerError, UserErr::CannotParseModelKey)),
     }
 }

@@ -6,9 +6,9 @@ use horfimbor_eventsource::{
 };
 
 #[cfg(feature = "server")]
-use crate::AUTH_USER_EVENT;
+use crate::USER_EVENT;
 
-use auth_public_event::PubAuthEvent;
+use public_user_event::PubUserEvent;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -31,9 +31,9 @@ impl From<String> for UserRole {
 }
 
 #[cfg_attr(feature = "server", derive(Command))]
-#[cfg_attr(feature = "server", state(AUTH_USER_EVENT))]
+#[cfg_attr(feature = "server", state(USER_EVENT))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum AuthUserCommand {
+pub enum UserCommand {
     Create {
         pseudo: String,
         password_hash: String,
@@ -56,9 +56,9 @@ pub enum UserError {
 }
 
 #[cfg_attr(feature = "server", derive(Event))]
-#[cfg_attr(feature = "server", state(AUTH_USER_EVENT))]
+#[cfg_attr(feature = "server", state(USER_EVENT))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum PrvAuthUserEvent {
+pub enum PrvUserEvent {
     Created {
         date: DateTime<Utc>,
     },
@@ -73,15 +73,15 @@ pub enum PrvAuthUserEvent {
 #[cfg_attr(feature = "server", derive(Event))]
 #[cfg_attr(feature = "server", composite_state)]
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub enum AuthUserEvent {
-    Private(PrvAuthUserEvent),
-    Public(PubAuthEvent),
+pub enum UserEvent {
+    Private(PrvUserEvent),
+    Public(PubUserEvent),
 }
 
 #[cfg_attr(feature = "server", derive(StateNamed))]
-#[cfg_attr(feature = "server", state(AUTH_USER_EVENT))]
+#[cfg_attr(feature = "server", state(USER_EVENT))]
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Default, Eq)]
-pub struct AuthUserState {
+pub struct UserState {
     pseudo: String,
     password_hash: Option<String>,
     password_change: DateTime<Utc>,
@@ -90,33 +90,31 @@ pub struct AuthUserState {
     role: Option<UserRole>,
 }
 
-impl AuthUserState {
-    fn play_private_event(&mut self, event: &PrvAuthUserEvent) {
+impl UserState {
+    fn play_private_event(&mut self, event: &PrvUserEvent) {
         match event {
-            PrvAuthUserEvent::Created { date } => {
+            PrvUserEvent::Created { date } => {
                 self.created_at = *date;
             }
-            PrvAuthUserEvent::PasswordChanged {
+            PrvUserEvent::PasswordChanged {
                 password_hash,
                 date,
             } => {
                 self.password_hash = Some(password_hash.clone());
                 self.password_change = *date;
             }
-            PrvAuthUserEvent::LoggedIn(date) => {
+            PrvUserEvent::LoggedIn(date) => {
                 self.last_login = Some(*date);
             }
-            PrvAuthUserEvent::ChangeRole(role) => self.role = role.clone(),
+            PrvUserEvent::ChangeRole(role) => self.role = role.clone(),
         }
     }
 
-    fn play_public_event(&mut self, event: &PubAuthEvent) {
+    fn play_public_event(&mut self, event: &PubUserEvent) {
         match event {
-            PubAuthEvent::UserCreated { pseudo } => {
+            PubUserEvent::UserCreated { pseudo } => {
                 self.pseudo = pseudo.clone();
             }
-            PubAuthEvent::AccountCreated { .. } => {}
-            PubAuthEvent::AccountDeleted => {}
         }
     }
 
@@ -146,15 +144,15 @@ impl AuthUserState {
 }
 
 #[cfg(feature = "server")]
-impl Dto for AuthUserState {
-    type Event = AuthUserEvent;
+impl Dto for UserState {
+    type Event = UserEvent;
 
     fn play_event(&mut self, event: &Self::Event) {
         match event {
-            AuthUserEvent::Private(private) => {
+            UserEvent::Private(private) => {
                 self.play_private_event(private);
             }
-            AuthUserEvent::Public(public) => {
+            UserEvent::Public(public) => {
                 self.play_public_event(public);
             }
         }
@@ -162,13 +160,13 @@ impl Dto for AuthUserState {
 }
 
 #[cfg(feature = "server")]
-impl State for AuthUserState {
-    type Command = AuthUserCommand;
+impl State for UserState {
+    type Command = UserCommand;
     type Error = UserError;
 
     fn try_command(&self, command: Self::Command) -> Result<Vec<Self::Event>, Self::Error> {
         match command {
-            AuthUserCommand::Create {
+            UserCommand::Create {
                 pseudo,
                 password_hash,
             } => {
@@ -179,32 +177,32 @@ impl State for AuthUserState {
 
                 let date = Utc::now();
                 Ok(vec![
-                    AuthUserEvent::Public(PubAuthEvent::UserCreated { pseudo }),
-                    AuthUserEvent::Private(PrvAuthUserEvent::Created { date }),
-                    AuthUserEvent::Private(PrvAuthUserEvent::PasswordChanged {
+                    UserEvent::Public(PubUserEvent::UserCreated { pseudo }),
+                    UserEvent::Private(PrvUserEvent::Created { date }),
+                    UserEvent::Private(PrvUserEvent::PasswordChanged {
                         date,
                         password_hash,
                     }),
                 ])
             }
-            AuthUserCommand::ChangePassword { password_hash } => {
+            UserCommand::ChangePassword { password_hash } => {
                 let date = Utc::now();
-                Ok(vec![AuthUserEvent::Private(
-                    PrvAuthUserEvent::PasswordChanged {
+                Ok(vec![UserEvent::Private(
+                    PrvUserEvent::PasswordChanged {
                         date,
                         password_hash,
                     },
                 )])
             }
-            AuthUserCommand::Login => Ok(vec![AuthUserEvent::Private(PrvAuthUserEvent::LoggedIn(
+            UserCommand::Login => Ok(vec![UserEvent::Private(PrvUserEvent::LoggedIn(
                 Utc::now(),
             ))]),
-            AuthUserCommand::ChangeRole(role) => {
+            UserCommand::ChangeRole(role) => {
                 if role == self.role {
                     return Err(UserError::SameRole);
                 }
 
-                Ok(vec![AuthUserEvent::Private(PrvAuthUserEvent::ChangeRole(
+                Ok(vec![UserEvent::Private(PrvUserEvent::ChangeRole(
                     role,
                 ))])
             }

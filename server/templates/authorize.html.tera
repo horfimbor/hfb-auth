@@ -11,7 +11,7 @@
     </div>
     {% endfor %}
     <div class="inputBox">
-        <input id="new_element_radio" type="radio" name="account" value="_" />
+        <input id="new_element_radio" type="radio" name="account" value="" />
         <label for="new_element_radio"> new account : </label>
         <div class="new_element_block">
             <input type="text" id="new" name="new_account">

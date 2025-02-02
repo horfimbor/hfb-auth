@@ -2,6 +2,7 @@ use crate::constants::COOKIE_SESSION;
 use crate::url_parsing::RedirectUrl;
 use anyhow::Result;
 use futures::{FutureExt, TryFutureExt};
+use hfb_auth_shared::user::UserRole;
 use horfimbor_eventsource::model_key::ModelKey;
 use rocket::http::{Cookie, CookieJar, SameSite};
 use serde::{Deserialize, Serialize};
@@ -15,7 +16,9 @@ pub struct SessionError {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LoggedInUser {
-    pub user_id: String,
+    pub user_id: ModelKey,
+    pub pseudo: String,
+    pub is_admin: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

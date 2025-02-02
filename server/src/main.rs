@@ -21,7 +21,7 @@ use futures::{task, FutureExt};
 use hfb_auth_shared::application::{
     AuthApplicationEvent, AuthApplicationList, AuthApplicationState, PrivateAuthApplicationEvent,
 };
-use hfb_auth_shared::user::{AuthUserCommand, AuthUserState, UserRole};
+use hfb_auth_shared::user::{UserCommand, UserState, UserRole};
 use hfb_auth_shared::{AUTH_APPLICATION_STREAM, AUTH_USER_STREAM};
 use horfimbor_eventsource::cache_db::redis::StateDb;
 use horfimbor_eventsource::helper::{create_subscription, get_persistent_subscription};
@@ -79,8 +79,8 @@ enum Command {
     },
 }
 
-type AuthUserStateCache = StateDb<AuthUserState>;
-type AuthUserRepository = StateRepository<AuthUserState, AuthUserStateCache>;
+type AuthUserStateCache = StateDb<UserState>;
+type AuthUserRepository = StateRepository<UserState, AuthUserStateCache>;
 
 type ApplicationStateCache = StateDb<AuthApplicationState>;
 type ApplicationRepository = StateRepository<AuthApplicationState, ApplicationStateCache>;
@@ -123,7 +123,7 @@ async fn main() -> anyhow::Result<()> {
 
             if let Some(role) = role {
                 let admin = auth_user_repository
-                    .add_command(&key, AuthUserCommand::ChangeRole(Some(role)), None)
+                    .add_command(&key, UserCommand::ChangeRole(Some(role)), None)
                     .await
                     .context("cannot change role")?;
                 dbg!(&admin);
@@ -133,7 +133,7 @@ async fn main() -> anyhow::Result<()> {
                 let admin = auth_user_repository
                     .add_command(
                         &key,
-                        AuthUserCommand::ChangePassword {
+                        UserCommand::ChangePassword {
                             password_hash: hash_password(&password).unwrap(),
                         },
                         None,

@@ -4,7 +4,7 @@ use crate::{public, AuthUserRepository};
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHasher};
-use hfb_auth_shared::user::AuthUserCommand;
+use hfb_auth_shared::user::UserCommand;
 use hfb_auth_shared::AUTH_USER_STREAM;
 use horfimbor_eventsource::model_key::ModelKey;
 use rocket::form::Form;
@@ -43,7 +43,7 @@ pub async fn register_form(
     state_repository
         .add_command(
             &key,
-            AuthUserCommand::Create {
+            UserCommand::Create {
                 pseudo: register.pseudo.to_string(),
                 password_hash,
             },
