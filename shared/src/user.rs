@@ -6,32 +6,15 @@ use horfimbor_eventsource::{
 };
 
 #[cfg(feature = "server")]
-use crate::USER_EVENT;
+use crate::AUTH_USER_EVENT;
 
-use public_user_event::PubUserEvent;
 use chrono::{DateTime, Utc};
+use public_user_event::PubUserEvent;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum UserRole {
-    Admin,
-    None,
-}
-
-// needed for clap ??!
-impl From<String> for UserRole {
-    fn from(value: String) -> Self {
-        if value == "Admin" {
-            Self::Admin
-        } else {
-            Self::None
-        }
-    }
-}
-
 #[cfg_attr(feature = "server", derive(Command))]
-#[cfg_attr(feature = "server", state(USER_EVENT))]
+#[cfg_attr(feature = "server", state(AUTH_USER_EVENT))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum UserCommand {
     Create {
@@ -56,7 +39,7 @@ pub enum UserError {
 }
 
 #[cfg_attr(feature = "server", derive(Event))]
-#[cfg_attr(feature = "server", state(USER_EVENT))]
+#[cfg_attr(feature = "server", state(AUTH_USER_EVENT))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum PrvUserEvent {
     Created {
@@ -79,7 +62,7 @@ pub enum UserEvent {
 }
 
 #[cfg_attr(feature = "server", derive(StateNamed))]
-#[cfg_attr(feature = "server", state(USER_EVENT))]
+#[cfg_attr(feature = "server", state(AUTH_USER_EVENT))]
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Default, Eq)]
 pub struct UserState {
     pseudo: String,
@@ -187,25 +170,36 @@ impl State for UserState {
             }
             UserCommand::ChangePassword { password_hash } => {
                 let date = Utc::now();
-                Ok(vec![UserEvent::Private(
-                    PrvUserEvent::PasswordChanged {
-                        date,
-                        password_hash,
-                    },
-                )])
+                Ok(vec![UserEvent::Private(PrvUserEvent::PasswordChanged {
+                    date,
+                    password_hash,
+                })])
             }
-            UserCommand::Login => Ok(vec![UserEvent::Private(PrvUserEvent::LoggedIn(
-                Utc::now(),
-            ))]),
+            UserCommand::Login => Ok(vec![UserEvent::Private(PrvUserEvent::LoggedIn(Utc::now()))]),
             UserCommand::ChangeRole(role) => {
                 if role == self.role {
                     return Err(UserError::SameRole);
                 }
 
-                Ok(vec![UserEvent::Private(PrvUserEvent::ChangeRole(
-                    role,
-                ))])
+                Ok(vec![UserEvent::Private(PrvUserEvent::ChangeRole(role))])
             }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum UserRole {
+    Admin,
+    None,
+}
+
+// needed for clap ??!
+impl From<String> for UserRole {
+    fn from(value: String) -> Self {
+        if value == "Admin" {
+            Self::Admin
+        } else {
+            Self::None
         }
     }
 }

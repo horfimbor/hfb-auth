@@ -96,11 +96,14 @@ pub async fn authorize_form(
     };
 
     let application = repository_apps.get_model(app_key).await.unwrap();
-    let user = repository_user.get_model(&user.data().user_id).await.unwrap();
+    let user = repository_user
+        .get_model(&user.data().user_id)
+        .await
+        .unwrap();
 
-    if authorize.account.is_empty(){
+    if authorize.account.is_empty() {
         todo!("create account");
-    }else{
+    } else {
         todo!("load account")
     }
 

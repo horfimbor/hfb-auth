@@ -93,7 +93,6 @@ impl AuthApplicationState {
         &self.name
     }
 
-
     pub fn host(&self) -> &Url {
         &self.host
     }

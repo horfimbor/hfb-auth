@@ -8,12 +8,14 @@ horfimbor-eventsource = { workspace = true, optional = true }
 serde.workspace = true
 thiserror.workspace = true
 public-user-event = {workspace = true }
+public-account-event = {workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 url = { version= "2.5", features = ["serde"] }
 rand = "0.8"
+uuid = {workspace = true }
 
 [features]
-server = ["horfimbor-eventsource", "public-user-event/server"]
+server = ["horfimbor-eventsource", "public-user-event/server", "public-account-event/server"]
 
 [lints]
 workspace = true

@@ -21,7 +21,7 @@ use futures::{task, FutureExt};
 use hfb_auth_shared::application::{
     AuthApplicationEvent, AuthApplicationList, AuthApplicationState, PrivateAuthApplicationEvent,
 };
-use hfb_auth_shared::user::{UserCommand, UserState, UserRole};
+use hfb_auth_shared::user::{UserCommand, UserRole, UserState};
 use hfb_auth_shared::{AUTH_APPLICATION_STREAM, AUTH_USER_STREAM};
 use horfimbor_eventsource::cache_db::redis::StateDb;
 use horfimbor_eventsource::helper::{create_subscription, get_persistent_subscription};

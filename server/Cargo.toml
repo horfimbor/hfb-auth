@@ -14,7 +14,7 @@ jsonwebtoken = "9.3"
 redis.workspace = true
 rocket = { version = "0.5", features = ["secrets"] }
 rocket_cors = "0.6"
-uuid = { version = "1.8", features = ["v4", "v5"] }
+uuid = { workspace = true }
 serde = "1.0"
 serde_json = "1.0"
 hfb-auth-shared = { path = "../shared", features = ["server"] }
