@@ -1,7 +1,7 @@
 use crate::constants::AUTH_USER_UUID;
 use crate::session::{get_session, remove_session, set_session, LoggedInUser, SessionError};
 use crate::url_parsing::RedirectUrl;
-use crate::{admin, authorization, public, user, AuthUserRepository};
+use crate::{admin, authorization, public, user, UserRepository};
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use hfb_auth_shared::user::{UserCommand, UserState};
 use hfb_auth_shared::AUTH_USER_STREAM;
@@ -52,7 +52,7 @@ pub struct Login<'r> {
 #[post("/login", data = "<login>")]
 pub async fn login(
     login: Form<Login<'_>>,
-    auth_user_repository: &State<AuthUserRepository>,
+    auth_user_repository: &State<UserRepository>,
     cookies: &CookieJar<'_>,
 ) -> Result<Redirect, Redirect> {
     let key = ModelKey::new_uuid_v8(AUTH_USER_STREAM, AUTH_USER_UUID, login.email);
@@ -79,7 +79,7 @@ pub async fn login(
         ));
     };
 
-    let parsed_hash = PasswordHash::new(&password_hash)
+    let parsed_hash = PasswordHash::new(password_hash)
         .map_err(|_| redirect_failed_login(&login, cookies, "Password hashing failed"))?;
 
     assert!(Argon2::default()

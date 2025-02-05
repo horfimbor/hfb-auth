@@ -1,6 +1,6 @@
 use crate::admin::application;
 use crate::session::{get_session, LoggedInUser};
-use crate::AuthUserRepository;
+use crate::UserRepository;
 use hfb_auth_shared::user::{UserRole, UserState};
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::{ModelWithPosition, Repository};

@@ -1,6 +1,6 @@
 use crate::constants::AUTH_USER_UUID;
 use crate::public::helper;
-use crate::{public, AuthUserRepository};
+use crate::{public, UserRepository};
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHasher};
@@ -29,7 +29,7 @@ pub struct Register<'r> {
 
 #[post("/register", data = "<register>")]
 pub async fn register_form(
-    state_repository: &State<AuthUserRepository>,
+    state_repository: &State<UserRepository>,
     register: Form<Register<'_>>,
     cookies: &CookieJar<'_>,
 ) -> Result<Redirect, Status> {

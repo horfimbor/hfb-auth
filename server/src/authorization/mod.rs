@@ -3,11 +3,13 @@ use crate::public::connexion;
 use crate::session::{base_host, get_session, set_session};
 use crate::url_parsing::RedirectUrl;
 use crate::user::User;
-use crate::{ApplicationRepository, AuthUserRepository};
-use hfb_auth_shared::application::AuthApplicationState;
-use hfb_auth_shared::AUTH_APPLICATION_STREAM;
+use crate::{AccountRepository, ApplicationRepository, UserRepository};
+use hfb_auth_shared::account::AccountCommand;
+use hfb_auth_shared::application::ApplicationState;
+use hfb_auth_shared::{AUTH_ACCOUNT_STREAM, AUTH_APPLICATION_STREAM};
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::Repository;
+use jsonwebtoken::{encode, EncodingKey, Header};
 use rocket::form::Form;
 use rocket::http::uri::{Origin, Uri};
 use rocket::http::{CookieJar, Status};
@@ -15,7 +17,9 @@ use rocket::response::Redirect;
 use rocket::serde::{Deserialize, Serialize};
 use rocket::{Route, State};
 use rocket_dyn_templates::{context, Template};
+use std::time::{SystemTime, UNIX_EPOCH};
 use url::Url;
+use uuid::Uuid;
 
 pub fn get_authorization_routes() -> Vec<Route> {
     routes![authorize, authorize_guest, authorize_form, single_use_token,]
@@ -35,7 +39,7 @@ pub async fn authorize(
     );
     let application = repository.get_model(&key).await.unwrap();
 
-    if *application.state() == AuthApplicationState::default() {
+    if *application.state() == ApplicationState::default() {
         return Err(Status::NotFound);
     }
 
@@ -62,7 +66,7 @@ pub async fn authorize_guest(
     uri: &Origin<'_>,
 ) -> Result<Redirect, Status> {
     let mut session = get_session(cookies);
-    let redirect = format!("{}{}", base_host(), uri.to_string());
+    let redirect = format!("{}{}", base_host(), uri);
     let url = Url::parse(&redirect).map_err(|e| {
         dbg!(e);
         Status::BadRequest
@@ -85,7 +89,8 @@ pub async fn authorize_form(
     cookies: &CookieJar<'_>,
     authorize: Form<Authorize>,
     repository_apps: &State<ApplicationRepository>,
-    repository_user: &State<AuthUserRepository>,
+    repository_user: &State<UserRepository>,
+    repository_account: &State<AccountRepository>,
     user: User,
 ) -> Result<Redirect, Status> {
     dbg!(&authorize);
@@ -96,23 +101,39 @@ pub async fn authorize_form(
     };
 
     let application = repository_apps.get_model(app_key).await.unwrap();
-    let user = repository_user
-        .get_model(&user.data().user_id)
-        .await
-        .unwrap();
+    // let user = repository_user
+    //     .get_model(&user.data().user_id)
+    //     .await
+    //     .unwrap();
 
-    if authorize.account.is_empty() {
-        todo!("create account");
+    let one_time = if authorize.account.is_empty() {
+        let key = ModelKey::new(AUTH_ACCOUNT_STREAM, Uuid::new_v4());
+
+        let model = repository_account
+            .add_command(
+                &key,
+                AccountCommand::Create {
+                    user_id: user.data().user_id.clone(),
+                    app_id: app_key.clone(),
+                    name: authorize.new_account.clone(),
+                },
+                None,
+            )
+            .await
+            .unwrap();
+
+        dbg!(&model);
+
+        model.one_time_token(&key)
     } else {
         todo!("load account")
     }
+    .unwrap();
 
-    todo!("generate one_time");
-
-    // Ok(Redirect::to(format!(
-    //     "{}/auth?token={one_time}",
-    //     application.state().host()
-    // )))
+    Ok(Redirect::to(format!(
+        "{}/auth?token={one_time}",
+        application.state().host()
+    )))
 }
 
 #[derive(FromForm, Debug)]
@@ -121,52 +142,73 @@ pub struct SingleUseToken<'r> {
     app_key: &'r str,
 }
 
-#[post("/auth/single-use-token", data = "<token>")]
-pub async fn single_use_token(token: Form<SingleUseToken<'_>>) -> Result<String, Status> {
-    todo!();
-    //
-    // let token = maria_db
-    //     .get_one_time_token(token.token)
-    //     .await
-    //     .map_err(|_| Status::InternalServerError)?
-    //     .ok_or(Status::NotFound)?;
-    //
-    // dbg!(&token);
-    //
-    // let application = maria_db
-    //     .get_application(token.application_id())
-    //     .await
-    //     .map_err(|_| Status::InternalServerError)?
-    //     .ok_or(Status::NotFound)?;
-    //
-    // dbg!(&application);
-    //
-    // let start = SystemTime::now();
-    // let since_the_epoch = start
-    //     .duration_since(UNIX_EPOCH)
-    //     .map_err(|_| Status::InternalServerError)?
-    //     .as_secs();
-    //
-    // let claims = Claims {
-    //     aud: application
-    //         .name()
-    //         .parse()
-    //         .map_err(|_| Status::InternalServerError)?,
-    //     exp: (since_the_epoch + 3600) as usize,
-    //     iat: since_the_epoch as usize,
-    //     iss: "login".parse().unwrap(),
-    //     sub: "user".parse().unwrap(),
-    //     id: token.account_id().parse().unwrap(),
-    // };
-    //
-    // let token = encode(
-    //     &Header::default(),
-    //     &claims,
-    //     &EncodingKey::from_secret(application.app_key().as_ref()),
-    // )
-    // .map_err(|_| Status::InternalServerError)?;
-    //
-    // Ok(token)
+#[post("/auth/single-use-token", data = "<data>")]
+pub async fn single_use_token(
+    data: Form<SingleUseToken<'_>>,
+    repository_apps: &State<ApplicationRepository>,
+    repository_user: &State<UserRepository>,
+    repository_account: &State<AccountRepository>,
+) -> Result<String, Status> {
+    dbg!(&data);
+
+    let mut split = data.token.split('|');
+    let key = ModelKey::try_from(split.next().unwrap_or_default()).unwrap();
+
+    let account = repository_account.get_model(&key).await.unwrap();
+
+    dbg!(&account.state());
+
+    if account.state().one_time_token(&key).unwrap() != data.token {
+        todo!("wrong one time token")
+    }
+
+    let application = repository_apps
+        .get_model(account.state().app_id())
+        .await
+        .unwrap();
+    let application = application.state();
+
+    dbg!(&application);
+
+    if application.key() != data.app_key {
+        todo!("wrong app key")
+    }
+
+    let account = repository_account
+        .add_command(&key, AccountCommand::Validate, None)
+        .await
+        .unwrap();
+
+    dbg!(&account);
+
+    let start = SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .map_err(|_| Status::InternalServerError)?
+        .as_secs();
+
+    let claims = Claims {
+        aud: application
+            .name()
+            .parse()
+            .map_err(|_| Status::InternalServerError)?,
+        exp: (since_the_epoch + 3600) as usize,
+        iat: since_the_epoch as usize,
+        iss: "login".parse().unwrap(),
+        sub: "user".parse().unwrap(),
+        id: key.to_string(),
+    };
+
+    let token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(application.key().as_ref()),
+    )
+    .map_err(|_| Status::InternalServerError)?;
+
+    dbg!(&token);
+
+    Ok(token)
 }
 
 #[derive(Debug, Serialize, Deserialize)]

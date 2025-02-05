@@ -15,7 +15,7 @@ use crate::AUTH_APPLICATION_EVENT;
 #[cfg_attr(feature = "server", derive(Command))]
 #[cfg_attr(feature = "server", state(AUTH_APPLICATION_EVENT))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum AuthApplicationCommand {
+pub enum ApplicationCommand {
     Create { name: String, host: Url },
     RegenerateKey,
 }
@@ -23,7 +23,7 @@ pub enum AuthApplicationCommand {
 #[cfg_attr(feature = "server", derive(Event))]
 #[cfg_attr(feature = "server", state(AUTH_APPLICATION_EVENT))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum PrivateAuthApplicationEvent {
+pub enum PrivateApplicationEvent {
     Created {
         name: String,
         host: Url,
@@ -38,27 +38,28 @@ pub enum PrivateAuthApplicationEvent {
 #[cfg_attr(feature = "server", composite_state)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
-pub enum AuthApplicationEvent {
-    Private(PrivateAuthApplicationEvent),
+pub enum ApplicationEvent {
+    Private(PrivateApplicationEvent),
 }
 
 #[cfg_attr(feature = "server", derive(StateNamed))]
 #[cfg_attr(feature = "server", state(AUTH_APPLICATION_EVENT))]
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Eq)]
-pub struct AuthApplicationState {
+pub struct ApplicationState {
     name: String,
     host: Url,
     key: String,
+    // TODO use 2 key : one to signe, and one for server2server call
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct AuthApplicationList {
+pub struct ApplicationList {
     pub id: String,
     pub name: String,
     pub host: Url,
 }
 
-impl Default for AuthApplicationState {
+impl Default for ApplicationState {
     fn default() -> Self {
         Self {
             name: "".to_string(),
@@ -68,15 +69,15 @@ impl Default for AuthApplicationState {
     }
 }
 
-impl AuthApplicationState {
-    fn play_private_event(&mut self, event: &PrivateAuthApplicationEvent) {
+impl ApplicationState {
+    fn play_private_event(&mut self, event: &PrivateApplicationEvent) {
         match event {
-            PrivateAuthApplicationEvent::Created { host, key, name } => {
+            PrivateApplicationEvent::Created { host, key, name } => {
                 self.host = host.to_owned();
                 self.key = key.clone();
                 self.name = name.clone();
             }
-            PrivateAuthApplicationEvent::KeyChanged { key } => {
+            PrivateApplicationEvent::KeyChanged { key } => {
                 self.key = key.clone();
             }
         }
@@ -96,15 +97,19 @@ impl AuthApplicationState {
     pub fn host(&self) -> &Url {
         &self.host
     }
+
+    pub fn key(&self) -> &str {
+        &self.key
+    }
 }
 
 #[cfg(feature = "server")]
-impl Dto for AuthApplicationState {
-    type Event = AuthApplicationEvent;
+impl Dto for ApplicationState {
+    type Event = ApplicationEvent;
 
     fn play_event(&mut self, event: &Self::Event) {
         match event {
-            AuthApplicationEvent::Private(e) => self.play_private_event(e),
+            ApplicationEvent::Private(e) => self.play_private_event(e),
         }
     }
 }
@@ -113,24 +118,24 @@ impl Dto for AuthApplicationState {
 pub enum AuthApplicationError {}
 
 #[cfg(feature = "server")]
-impl State for AuthApplicationState {
-    type Command = AuthApplicationCommand;
+impl State for ApplicationState {
+    type Command = ApplicationCommand;
     type Error = AuthApplicationError;
 
     fn try_command(&self, command: Self::Command) -> Result<Vec<Self::Event>, Self::Error> {
         match command {
-            AuthApplicationCommand::Create { name, host } => {
-                let key = AuthApplicationState::generate_key();
+            ApplicationCommand::Create { name, host } => {
+                let key = ApplicationState::generate_key();
 
-                Ok(vec![AuthApplicationEvent::Private(
-                    PrivateAuthApplicationEvent::Created { key, name, host },
+                Ok(vec![ApplicationEvent::Private(
+                    PrivateApplicationEvent::Created { key, name, host },
                 )])
             }
-            AuthApplicationCommand::RegenerateKey => {
-                let key = AuthApplicationState::generate_key();
+            ApplicationCommand::RegenerateKey => {
+                let key = ApplicationState::generate_key();
 
-                Ok(vec![AuthApplicationEvent::Private(
-                    PrivateAuthApplicationEvent::KeyChanged { key },
+                Ok(vec![ApplicationEvent::Private(
+                    PrivateApplicationEvent::KeyChanged { key },
                 )])
             }
         }

@@ -2,7 +2,7 @@ pub mod application;
 
 use crate::user::Admin;
 use crate::ApplicationRepository;
-use hfb_auth_shared::application::AuthApplicationCommand;
+use hfb_auth_shared::application::ApplicationCommand;
 use hfb_auth_shared::AUTH_APPLICATION_STREAM;
 use horfimbor_eventsource::model_key::ModelKey;
 use rocket::form::Form;

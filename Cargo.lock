@@ -1058,7 +1058,6 @@ dependencies = [
  "serde",
  "thiserror 2.0.4",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -1081,8 +1080,7 @@ dependencies = [
 
 [[package]]
 name = "horfimbor-eventsource"
-version = "0.3.1"
-source = "git+https://github.com/horfimbor/horfimbor-engine.git?branch=release-plz-2024-10-13T15-44-09Z#37583246d7241168fac9c3d8874f5143a9601074"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "eventstore",
@@ -1099,8 +1097,7 @@ dependencies = [
 
 [[package]]
 name = "horfimbor-eventsource-derive"
-version = "0.1.6"
-source = "git+https://github.com/horfimbor/horfimbor-engine.git?branch=release-plz-2024-10-13T15-44-09Z#37583246d7241168fac9c3d8874f5143a9601074"
+version = "0.1.5"
 dependencies = [
  "convert_case",
  "proc-macro2",

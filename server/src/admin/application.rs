@@ -3,9 +3,7 @@ use crate::user::Admin;
 use crate::ApplicationRepository;
 use anyhow::Context;
 use eventstore::Client;
-use hfb_auth_shared::application::{
-    AuthApplicationCommand, AuthApplicationList, PrivateAuthApplicationEvent,
-};
+use hfb_auth_shared::application::{ApplicationCommand, ApplicationList, PrivateApplicationEvent};
 use hfb_auth_shared::AUTH_APPLICATION_STREAM;
 use horfimbor_eventsource::helper::{create_subscription, get_subscription};
 use horfimbor_eventsource::model_key::ModelKey;
@@ -31,7 +29,7 @@ pub async fn list(_admin: Admin, redis: &State<RedisClient>) -> Template {
         .get(APPLICATION_LIST_REDIS_KEY)
         .expect("cannot get data");
 
-    let application_list: Vec<AuthApplicationList> = match raw_data {
+    let application_list: Vec<ApplicationList> = match raw_data {
         None => Vec::new(),
         Some(list) => serde_json::from_str(&list)
             .context("cannot deserialize application list in redis")
@@ -84,7 +82,7 @@ pub async fn post_create(
     let model = repository
         .add_command(
             &key,
-            AuthApplicationCommand::Create {
+            ApplicationCommand::Create {
                 name: application.name.to_string(),
                 host: Url::parse(application.host).unwrap(),
             },

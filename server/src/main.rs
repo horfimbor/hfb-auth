@@ -18,8 +18,9 @@ use clap::{Parser, Subcommand, ValueEnum};
 use eventstore::Client as EventstoreClient;
 use futures::future::{try_join_all, BoxFuture};
 use futures::{task, FutureExt};
+use hfb_auth_shared::account::AccountState;
 use hfb_auth_shared::application::{
-    AuthApplicationEvent, AuthApplicationList, AuthApplicationState, PrivateAuthApplicationEvent,
+    ApplicationEvent, ApplicationList, ApplicationState, PrivateApplicationEvent,
 };
 use hfb_auth_shared::user::{UserCommand, UserRole, UserState};
 use hfb_auth_shared::{AUTH_APPLICATION_STREAM, AUTH_USER_STREAM};
@@ -79,11 +80,14 @@ enum Command {
     },
 }
 
-type AuthUserStateCache = StateDb<UserState>;
-type AuthUserRepository = StateRepository<UserState, AuthUserStateCache>;
+type UserStateCache = StateDb<UserState>;
+type UserRepository = StateRepository<UserState, UserStateCache>;
 
-type ApplicationStateCache = StateDb<AuthApplicationState>;
-type ApplicationRepository = StateRepository<AuthApplicationState, ApplicationStateCache>;
+type ApplicationStateCache = StateDb<ApplicationState>;
+type ApplicationRepository = StateRepository<ApplicationState, ApplicationStateCache>;
+
+type AccountStateCache = StateDb<AccountState>;
+type AccountRepository = StateRepository<AccountState, AccountStateCache>;
 
 #[rocket::main]
 async fn main() -> anyhow::Result<()> {
@@ -104,13 +108,17 @@ async fn main() -> anyhow::Result<()> {
     let event_store_db =
         EventstoreClient::new(eventstore_uri).context("fail to connect to eventstore db")?;
 
-    let auth_user_repository = AuthUserRepository::new(
+    let auth_user_repository = UserRepository::new(
         event_store_db.clone(),
-        AuthUserStateCache::new(redis_client.clone()),
+        UserStateCache::new(redis_client.clone()),
     );
     let application_repository = ApplicationRepository::new(
         event_store_db.clone(),
         ApplicationStateCache::new(redis_client.clone()),
+    );
+    let account_repository = AccountRepository::new(
+        event_store_db.clone(),
+        AccountStateCache::new(redis_client.clone()),
     );
 
     match args.command {
@@ -152,6 +160,7 @@ async fn main() -> anyhow::Result<()> {
                     start_server(
                         auth_user_repository,
                         application_repository,
+                        account_repository,
                         redis_client.clone(),
                     )
                     .boxed(),
@@ -190,7 +199,7 @@ async fn listen_applications(event_db: EventstoreClient, redis: RedisClient) -> 
         .get(APPLICATION_LIST_REDIS_KEY)
         .context("cannot get data")?;
 
-    let mut application_list: Vec<AuthApplicationList> = match raw_data {
+    let mut application_list: Vec<ApplicationList> = match raw_data {
         None => Vec::new(),
         Some(list) => {
             serde_json::from_str(&list).context("cannot deserialize application list in redis")?
@@ -219,13 +228,13 @@ async fn listen_applications(event_db: EventstoreClient, redis: RedisClient) -> 
         }
 
         let event = full_event
-            .as_json::<AuthApplicationEvent>()
+            .as_json::<ApplicationEvent>()
             .expect("cannot deserialize");
 
         match event {
-            AuthApplicationEvent::Private(prv) => match prv {
-                PrivateAuthApplicationEvent::Created { name, host, key } => {
-                    application_list.push(AuthApplicationList {
+            ApplicationEvent::Private(prv) => match prv {
+                PrivateApplicationEvent::Created { name, host, key } => {
+                    application_list.push(ApplicationList {
                         id: full_event.id.to_string(),
                         name,
                         host,
@@ -237,7 +246,7 @@ async fn listen_applications(event_db: EventstoreClient, redis: RedisClient) -> 
                         .set(APPLICATION_LIST_REDIS_KEY, data)
                         .context("cannot set data in redis")?;
                 }
-                PrivateAuthApplicationEvent::KeyChanged { .. } => {}
+                PrivateApplicationEvent::KeyChanged { .. } => {}
             },
         }
 
@@ -250,8 +259,9 @@ async fn listen_applications(event_db: EventstoreClient, redis: RedisClient) -> 
 }
 
 async fn start_server(
-    auth_user_repository: AuthUserRepository,
+    auth_user_repository: UserRepository,
     application_repository: ApplicationRepository,
+    account_repository: AccountRepository,
     redis: RedisClient,
 ) -> Result<(), Error> {
     let auth_port = env::var("APP_PORT")
@@ -287,6 +297,7 @@ async fn start_server(
     let _ = rocket::custom(figment)
         .manage(auth_user_repository)
         .manage(application_repository)
+        .manage(account_repository)
         .manage(redis)
         .mount("/", admin::get_admin_routes())
         .mount("/", authorization::get_authorization_routes())
