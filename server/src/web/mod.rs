@@ -1,22 +1,22 @@
-use redis::Client as RedisClient;
-use anyhow::{Context, Error};
-use std::env;
-use rocket_cors::{AllowedHeaders, AllowedOrigins};
-use rocket::http::Method;
-use rocket::fs::FileServer;
-use rocket::___internal_relative as relative;
-use rocket_dyn_templates::{context, Template};
 use crate::{user, AccountRepository, ApplicationRepository, UserRepository};
+use anyhow::{Context, Error};
+use redis::Client as RedisClient;
+use rocket::___internal_relative as relative;
+use rocket::fs::FileServer;
+use rocket::http::Method;
+use rocket_cors::{AllowedHeaders, AllowedOrigins};
+use rocket_dyn_templates::{context, Template};
+use std::env;
 
 pub mod admin;
-pub mod authorization;
+pub mod application;
 pub mod public;
 
 pub async fn start_server(
-    auth_user_repository: UserRepository,
-    application_repository: ApplicationRepository,
-    account_repository: AccountRepository,
-    redis: RedisClient,
+    auth_user_repository: &UserRepository,
+    application_repository: &ApplicationRepository,
+    account_repository: &AccountRepository,
+    redis: &RedisClient,
 ) -> Result<(), Error> {
     let auth_port = env::var("APP_PORT")
         .context("APP_PORT is not defined")?
@@ -49,12 +49,12 @@ pub async fn start_server(
     .context("cannot create cors")?;
 
     let _ = rocket::custom(figment)
-        .manage(auth_user_repository)
-        .manage(application_repository)
-        .manage(account_repository)
-        .manage(redis)
+        .manage(auth_user_repository.clone())
+        .manage(application_repository.clone())
+        .manage(account_repository.clone())
+        .manage(redis.clone())
         .mount("/", admin::get_admin_routes())
-        .mount("/", authorization::get_authorization_routes())
+        .mount("/", application::get_authorization_routes())
         .mount("/", user::get_user_routes())
         .mount("/", public::get_routes())
         .mount("/", FileServer::from(relative!("web")))

@@ -11,7 +11,11 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "server", state(PUB_ACCOUNT_EVENT))]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum PubAccountEvent {
-    AccountCreated { app_id: ModelKey, name: String },
+    AccountCreated {
+        user_id: ModelKey,
+        app_id: ModelKey,
+        name: String,
+    },
     AccountSuspended,
     AccountResumed,
 }

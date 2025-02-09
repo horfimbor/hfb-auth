@@ -6,8 +6,8 @@
 <form action="/auth/authorize" method="post">
     {% for account in accounts %}
     <div class="inputBox">
-        <input id="input_{{account}}" type="radio" name="account" value="{{account}}" />
-        <label for="input_{{account}}"> {{account}} : </label>
+        <input id="input_{{account.0}}" type="radio" name="account" value="{{account.0}}" />
+        <label for="input_{{account.0}}"> {{account.1}} : </label>
     </div>
     {% endfor %}
     <div class="inputBox">

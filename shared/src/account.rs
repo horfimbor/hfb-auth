@@ -1,7 +1,6 @@
-#[cfg(feature = "server")]
 use horfimbor_eventsource::horfimbor_eventsource_derive::{Command, Event, StateNamed};
 use horfimbor_eventsource::model_key::ModelKey;
-#[cfg(feature = "server")]
+
 use horfimbor_eventsource::{
     Command, CommandName, Dto, Event, EventName, State, StateName, StateNamed,
 };
@@ -9,11 +8,10 @@ use public_account_event::PubAccountEvent;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[cfg(feature = "server")]
 use crate::AUTH_ACCOUNT_EVENT;
 
-#[cfg_attr(feature = "server", derive(Command))]
-#[cfg_attr(feature = "server", state(AUTH_ACCOUNT_EVENT))]
+#[derive(Command)]
+#[state(AUTH_ACCOUNT_EVENT)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum AccountCommand {
     Create {
@@ -38,8 +36,8 @@ pub enum AccountError {
     NoOneTimeCode,
 }
 
-#[cfg_attr(feature = "server", derive(Event))]
-#[cfg_attr(feature = "server", state(AUTH_ACCOUNT_EVENT))]
+#[derive(Event)]
+#[state(AUTH_ACCOUNT_EVENT)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum PrvAccountEvent {
     Created {
@@ -53,16 +51,16 @@ pub enum PrvAccountEvent {
     OneTimeTokenRemoved,
 }
 
-#[cfg_attr(feature = "server", derive(Event))]
-#[cfg_attr(feature = "server", composite_state)]
+#[derive(Event)]
+#[composite_state]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum AccountEvent {
     Private(PrvAccountEvent),
     Public(PubAccountEvent),
 }
 
-#[cfg_attr(feature = "server", derive(StateNamed))]
-#[cfg_attr(feature = "server", state(AUTH_ACCOUNT_EVENT))]
+#[derive(StateNamed)]
+#[state(AUTH_ACCOUNT_EVENT)]
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Default, Eq)]
 pub struct AccountState {
     user_id: ModelKey,
@@ -115,7 +113,6 @@ impl AccountState {
     }
 }
 
-#[cfg(feature = "server")]
 impl Dto for AccountState {
     type Event = AccountEvent;
 
@@ -127,7 +124,6 @@ impl Dto for AccountState {
     }
 }
 
-#[cfg(feature = "server")]
 impl State for AccountState {
     type Command = AccountCommand;
     type Error = AccountError;
@@ -152,13 +148,11 @@ impl State for AccountState {
                 ])
             }
             AccountCommand::Validate => Ok(vec![
-                AccountEvent::Public(
-                    // TODO what if already created ?
-                    PubAccountEvent::AccountCreated {
-                        app_id: self.app_id.clone(),
-                        name: self.name.clone(),
-                    },
-                ),
+                AccountEvent::Public(PubAccountEvent::AccountCreated {
+                    user_id: self.user_id.clone(),
+                    app_id: self.app_id.clone(),
+                    name: self.name.clone(),
+                }),
                 AccountEvent::Public(PubAccountEvent::AccountResumed),
                 AccountEvent::Private(PrvAccountEvent::OneTimeTokenRemoved),
             ]),

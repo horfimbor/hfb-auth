@@ -1,23 +1,26 @@
-use eventstore::Client as EventstoreClient;
-use redis::{Client as RedisClient, Commands};
+use crate::constants::APPLICATION_LIST_REDIS_KEY;
 use anyhow::{Context, Error};
-use horfimbor_eventsource::Stream;
+use eventstore::Client as EventstoreClient;
+use hfb_auth_shared::application::{ApplicationEvent, ApplicationList, PrivateApplicationEvent};
 use hfb_auth_shared::AUTH_APPLICATION_STREAM;
 use horfimbor_eventsource::helper::{create_subscription, get_persistent_subscription};
-use hfb_auth_shared::application::{ApplicationEvent, ApplicationList, PrivateApplicationEvent};
 use horfimbor_eventsource::metadata::Metadata;
+use horfimbor_eventsource::Stream;
+use redis::{Client as RedisClient, Commands};
 use serde_json::json;
-use crate::constants::APPLICATION_LIST_REDIS_KEY;
 
-pub async fn listen_applications(event_db: EventstoreClient, redis: RedisClient) -> Result<(), Error> {
+pub async fn listen_applications(
+    event_db: &EventstoreClient,
+    redis: &RedisClient,
+) -> Result<(), Error> {
     let stream = Stream::Stream(AUTH_APPLICATION_STREAM);
     let group_name = "oups";
 
-    create_subscription(&event_db, &stream, group_name)
+    create_subscription(event_db, &stream, group_name)
         .await
         .context("cannot create subscription")?;
 
-    let mut sub = get_persistent_subscription(&event_db, &stream, group_name)
+    let mut sub = get_persistent_subscription(event_db, &stream, group_name)
         .await
         .context("cannot get subscription")?;
 
@@ -71,7 +74,7 @@ pub async fn listen_applications(event_db: EventstoreClient, redis: RedisClient)
                     let data = json!(application_list.clone()).to_string();
 
                     connection
-                        .set::<_,_, ()>(APPLICATION_LIST_REDIS_KEY, data)
+                        .set::<_, _, ()>(APPLICATION_LIST_REDIS_KEY, data)
                         .context("cannot set data in redis")?;
                 }
                 PrivateApplicationEvent::KeyChanged { .. } => {}

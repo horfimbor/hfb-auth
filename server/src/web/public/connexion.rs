@@ -1,6 +1,7 @@
 use crate::constants::AUTH_USER_UUID;
 use crate::session::{get_session, remove_session, set_session, LoggedInUser, SessionError};
 use crate::url_parsing::RedirectUrl;
+use crate::web::{admin, application, public};
 use crate::{user, UserRepository};
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use hfb_auth_shared::user::{UserCommand, UserState};
@@ -13,7 +14,6 @@ use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::{context, Template};
 use url::Url;
-use crate::web::{admin, authorization, public};
 
 #[get("/login")]
 pub async fn index(cookies: &CookieJar<'_>) -> Template {

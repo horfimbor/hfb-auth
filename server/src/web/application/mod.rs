@@ -1,14 +1,16 @@
 use crate::constants::AUTH_APPLICATION_UUID;
-use crate::web::public::connexion;
 use crate::session::{base_host, get_session, set_session};
 use crate::url_parsing::RedirectUrl;
 use crate::user::User;
+use crate::web::public::connexion;
 use crate::{AccountRepository, ApplicationRepository, UserRepository};
 use hfb_auth_shared::account::AccountCommand;
 use hfb_auth_shared::application::ApplicationState;
+use hfb_auth_shared::user::UserCommand;
 use hfb_auth_shared::{AUTH_ACCOUNT_STREAM, AUTH_APPLICATION_STREAM};
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::Repository;
+use horfimbor_eventsource::State as HorfimborState;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use rocket::form::Form;
 use rocket::http::uri::{Origin, Uri};
@@ -30,14 +32,23 @@ pub async fn authorize(
     cookies: &CookieJar<'_>,
     user: User,
     redirect: RedirectUrl,
-    repository: &State<ApplicationRepository>,
+    application_repository: &State<ApplicationRepository>,
+    repository_user: &State<UserRepository>,
 ) -> Result<Template, Status> {
-    let key = ModelKey::new_uuid_v8(
+    dbg!(&redirect.url());
+
+    let application_id = ModelKey::new_uuid_v8(
         AUTH_APPLICATION_STREAM,
         AUTH_APPLICATION_UUID,
         redirect.url().as_str(),
     );
-    let application = repository.get_model(&key).await.unwrap();
+
+    dbg!(&application_id);
+
+    let application = application_repository
+        .get_model(&application_id)
+        .await
+        .unwrap();
 
     if *application.state() == ApplicationState::default() {
         return Err(Status::NotFound);
@@ -45,10 +56,22 @@ pub async fn authorize(
 
     let mut session = get_session(cookies);
     session.set_redirect_url(redirect.url());
-    session.set_application(Some(key));
+    session.set_application(Some(application_id.clone()));
     set_session(cookies, session);
 
-    let accounts: Vec<&str> = vec![];
+    let user = repository_user
+        .get_model(&user.data().user_id)
+        .await
+        .unwrap();
+
+    dbg!(user.state().accounts(&application_id));
+
+    let accounts: Vec<(String, String)> = user
+        .state()
+        .accounts(&application_id)
+        .into_iter()
+        .map(|t| (t.0.format(), t.1))
+        .collect();
 
     Ok(Template::render(
         "authorize",
@@ -101,17 +124,18 @@ pub async fn authorize_form(
     };
 
     let application = repository_apps.get_model(app_key).await.unwrap();
-    // let user = repository_user
-    //     .get_model(&user.data().user_id)
-    //     .await
-    //     .unwrap();
 
     let one_time = if authorize.account.is_empty() {
-        let key = ModelKey::new(AUTH_ACCOUNT_STREAM, Uuid::new_v4());
+        let user_model = repository_user
+            .get_model(&user.data().user_id)
+            .await
+            .unwrap();
+
+        let new_account_key = ModelKey::new(AUTH_ACCOUNT_STREAM, Uuid::new_v4());
 
         let model = repository_account
             .add_command(
-                &key,
+                &new_account_key,
                 AccountCommand::Create {
                     user_id: user.data().user_id.clone(),
                     app_id: app_key.clone(),
@@ -122,9 +146,18 @@ pub async fn authorize_form(
             .await
             .unwrap();
 
+        let _ = user_model
+            .state()
+            .try_command(UserCommand::AddAccount {
+                application: app_key.clone(),
+                account: new_account_key.clone(),
+                label: authorize.new_account.clone(),
+            })
+            .unwrap();
+
         dbg!(&model);
 
-        model.one_time_token(&key)
+        model.one_time_token(&new_account_key)
     } else {
         todo!("load account")
     }
@@ -169,6 +202,7 @@ pub async fn single_use_token(
     let application = application.state();
 
     dbg!(&application);
+    dbg!(&data);
 
     if application.key() != data.app_key {
         todo!("wrong app key")

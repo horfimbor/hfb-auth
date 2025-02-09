@@ -1,6 +1,5 @@
-#[cfg(feature = "server")]
 use horfimbor_eventsource::horfimbor_eventsource_derive::{Command, Event, StateNamed};
-#[cfg(feature = "server")]
+
 use horfimbor_eventsource::{Command, CommandName, Event, EventName, StateName, StateNamed};
 use horfimbor_eventsource::{Dto, State};
 use rand::Rng;
@@ -9,19 +8,18 @@ use std::iter;
 use thiserror::Error;
 use url::Url;
 
-#[cfg(feature = "server")]
 use crate::AUTH_APPLICATION_EVENT;
 
-#[cfg_attr(feature = "server", derive(Command))]
-#[cfg_attr(feature = "server", state(AUTH_APPLICATION_EVENT))]
+#[derive(Command)]
+#[state(AUTH_APPLICATION_EVENT)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ApplicationCommand {
     Create { name: String, host: Url },
     RegenerateKey,
 }
 
-#[cfg_attr(feature = "server", derive(Event))]
-#[cfg_attr(feature = "server", state(AUTH_APPLICATION_EVENT))]
+#[derive(Event)]
+#[state(AUTH_APPLICATION_EVENT)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum PrivateApplicationEvent {
     Created {
@@ -34,16 +32,16 @@ pub enum PrivateApplicationEvent {
     },
 }
 
-#[cfg_attr(feature = "server", derive(Event))]
-#[cfg_attr(feature = "server", composite_state)]
+#[derive(Event)]
+#[composite_state]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum ApplicationEvent {
     Private(PrivateApplicationEvent),
 }
 
-#[cfg_attr(feature = "server", derive(StateNamed))]
-#[cfg_attr(feature = "server", state(AUTH_APPLICATION_EVENT))]
+#[derive(StateNamed)]
+#[state(AUTH_APPLICATION_EVENT)]
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Eq)]
 pub struct ApplicationState {
     name: String,
@@ -85,8 +83,8 @@ impl ApplicationState {
 
     fn generate_key() -> String {
         const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz";
-        let mut rng = rand::thread_rng();
-        let one_char = || CHARSET[rng.gen_range(0..CHARSET.len())] as char;
+        let mut rng = rand::rng();
+        let one_char = || CHARSET[rng.random_range(0..CHARSET.len())] as char;
         iter::repeat_with(one_char).take(40).collect()
     }
 
@@ -103,7 +101,6 @@ impl ApplicationState {
     }
 }
 
-#[cfg(feature = "server")]
 impl Dto for ApplicationState {
     type Event = ApplicationEvent;
 
@@ -117,7 +114,6 @@ impl Dto for ApplicationState {
 #[derive(Error, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum AuthApplicationError {}
 
-#[cfg(feature = "server")]
 impl State for ApplicationState {
     type Command = ApplicationCommand;
     type Error = AuthApplicationError;

@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 horfimbor-eventsource = { workspace = true, optional = true }
 serde.workspace = true
-uuid = { version = "1.8", features = ["v4", "v5"] }
 
 [features]
 server = ["horfimbor-eventsource"]

@@ -1,18 +1,19 @@
 #![allow(unused)]
 
 mod constants;
+mod consumer;
 mod session;
 mod url_parsing;
 mod user;
-mod consumer;
 mod web;
 
 #[macro_use]
 extern crate rocket;
 
-use web::public::helper::hash_password;
+use crate::consumer::account::listen_accounts;
 use anyhow::Context;
 use clap::{Parser, Subcommand, ValueEnum};
+use consumer::application;
 use eventstore::Client as EventstoreClient;
 use futures::future::try_join_all;
 use futures::FutureExt;
@@ -27,11 +28,13 @@ use redis::{Client as RedisClient, Commands};
 use std::env;
 use std::future::Future;
 use uuid::Uuid;
+use web::public::helper::hash_password;
 
 #[derive(Debug, PartialEq, Clone, ValueEnum)]
 enum Service {
     Web,
     Application,
+    Account,
 }
 
 #[derive(Parser, Debug)]
@@ -137,20 +140,26 @@ async fn main() -> anyhow::Result<()> {
         Command::Service { list } => {
             let mut services = Vec::new();
 
-            if list.is_empty() || list.contains(&Service::Web) {
+            if list.is_empty() || list.contains(&Service::Application) {
+                services
+                    .push(application::listen_applications(&event_store_db, &redis_client).boxed());
+            }
+            if list.is_empty() || list.contains(&Service::Account) {
                 services.push(
-                    web::start_server(
-                        auth_user_repository,
-                        application_repository,
-                        account_repository,
-                        redis_client.clone(),
-                    )
-                    .boxed(),
+                    listen_accounts(&event_store_db, &redis_client, &auth_user_repository).boxed(),
                 );
             }
 
-            if list.is_empty() || list.contains(&Service::Application) {
-                services.push(consumer::listen_applications(event_store_db, redis_client).boxed());
+            if list.is_empty() || list.contains(&Service::Web) {
+                services.push(
+                    web::start_server(
+                        &auth_user_repository,
+                        &application_repository,
+                        &account_repository,
+                        &redis_client,
+                    )
+                    .boxed(),
+                );
             }
 
             dbg!(services.len());
@@ -162,4 +171,3 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 }
-

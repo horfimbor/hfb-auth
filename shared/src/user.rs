@@ -1,20 +1,32 @@
-#[cfg(feature = "server")]
 use horfimbor_eventsource::horfimbor_eventsource_derive::{Command, Event, StateNamed};
-#[cfg(feature = "server")]
+use std::collections::HashMap;
+
 use horfimbor_eventsource::{
     Command, CommandName, Dto, Event, EventName, State, StateName, StateNamed,
 };
 
-#[cfg(feature = "server")]
-use crate::AUTH_USER_EVENT;
+use crate::{AccountId, ApplicationId, AUTH_USER_EVENT};
 
 use chrono::{DateTime, Utc};
 use public_user_event::PubUserEvent;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[cfg_attr(feature = "server", derive(Command))]
-#[cfg_attr(feature = "server", state(AUTH_USER_EVENT))]
+#[derive(StateNamed)]
+#[state(AUTH_USER_EVENT)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Default, Eq)]
+pub struct UserState {
+    pseudo: String,
+    password_hash: Option<String>,
+    password_change: DateTime<Utc>,
+    created_at: DateTime<Utc>,
+    last_login: Option<DateTime<Utc>>,
+    role: Option<UserRole>,
+    accounts: HashMap<ApplicationId, Vec<(AccountId, String)>>,
+}
+
+#[derive(Command)]
+#[state(AUTH_USER_EVENT)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum UserCommand {
     Create {
@@ -24,8 +36,17 @@ pub enum UserCommand {
     ChangePassword {
         password_hash: String,
     },
-    Login, // TODO logic must be in command not in controller
+    Login, // TODO logic must be in command not in controller ?
     ChangeRole(Option<UserRole>),
+    AddAccount {
+        application: ApplicationId,
+        account: AccountId,
+        label: String,
+    },
+    RemoveAccount {
+        application: ApplicationId,
+        account: AccountId,
+    },
 }
 
 #[derive(Error, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -36,10 +57,14 @@ pub enum UserError {
     AlreadyExists,
     #[error("User has already the role")]
     SameRole,
+    #[error("User already have account")]
+    AccountAlreadyLinked,
+    #[error("User didnt had have account")]
+    AccountAlreadyRemoved,
 }
 
-#[cfg_attr(feature = "server", derive(Event))]
-#[cfg_attr(feature = "server", state(AUTH_USER_EVENT))]
+#[derive(Event)]
+#[state(AUTH_USER_EVENT)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum PrvUserEvent {
     Created {
@@ -51,26 +76,23 @@ pub enum PrvUserEvent {
     },
     LoggedIn(DateTime<Utc>),
     ChangeRole(Option<UserRole>),
+    AccountAdded {
+        application: ApplicationId,
+        account: AccountId,
+        label: String,
+    },
+    AccountRemoved {
+        application: ApplicationId,
+        account: AccountId,
+    },
 }
 
-#[cfg_attr(feature = "server", derive(Event))]
-#[cfg_attr(feature = "server", composite_state)]
+#[derive(Event)]
+#[composite_state]
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum UserEvent {
     Private(PrvUserEvent),
     Public(PubUserEvent),
-}
-
-#[cfg_attr(feature = "server", derive(StateNamed))]
-#[cfg_attr(feature = "server", state(AUTH_USER_EVENT))]
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Default, Eq)]
-pub struct UserState {
-    pseudo: String,
-    password_hash: Option<String>,
-    password_change: DateTime<Utc>,
-    created_at: DateTime<Utc>,
-    last_login: Option<DateTime<Utc>>,
-    role: Option<UserRole>,
 }
 
 impl UserState {
@@ -90,6 +112,24 @@ impl UserState {
                 self.last_login = Some(*date);
             }
             PrvUserEvent::ChangeRole(role) => self.role = role.clone(),
+            PrvUserEvent::AccountAdded {
+                application,
+                account,
+                label,
+            } => {
+                let accounts = self.accounts.entry(application.clone()).or_default();
+                accounts.push((account.clone(), label.clone()))
+            }
+            PrvUserEvent::AccountRemoved {
+                application,
+                account,
+            } => {
+                let accounts = self.accounts.entry(application.clone()).or_default();
+                accounts.retain(|a| a.0 != *account);
+                if accounts.is_empty() {
+                    self.accounts.remove(application);
+                }
+            }
         }
     }
 
@@ -124,9 +164,17 @@ impl UserState {
     pub fn is_admin(&self) -> bool {
         self.role == Some(UserRole::Admin)
     }
+
+    pub fn accounts(&self, application: &ApplicationId) -> Vec<(AccountId, String)> {
+        match self.accounts.get(application) {
+            None => {
+                vec![]
+            }
+            Some(l) => l.clone(),
+        }
+    }
 }
 
-#[cfg(feature = "server")]
 impl Dto for UserState {
     type Event = UserEvent;
 
@@ -142,7 +190,6 @@ impl Dto for UserState {
     }
 }
 
-#[cfg(feature = "server")]
 impl State for UserState {
     type Command = UserCommand;
     type Error = UserError;
@@ -183,6 +230,52 @@ impl State for UserState {
 
                 Ok(vec![UserEvent::Private(PrvUserEvent::ChangeRole(role))])
             }
+            UserCommand::AddAccount {
+                application,
+                account,
+                label,
+            } => match self.accounts.get(&application) {
+                None => Ok(vec![UserEvent::Private(PrvUserEvent::AccountAdded {
+                    application,
+                    account,
+                    label,
+                })]),
+                Some(list) => {
+                    let filter: Vec<&(AccountId, String)> = list
+                        .iter()
+                        .filter(|v| v.0 == account || v.1 == label)
+                        .collect();
+
+                    if filter.is_empty() {
+                        Ok(vec![UserEvent::Private(PrvUserEvent::AccountAdded {
+                            application,
+                            account,
+                            label,
+                        })])
+                    } else {
+                        Err(UserError::AccountAlreadyLinked)
+                    }
+                }
+            },
+            UserCommand::RemoveAccount {
+                application,
+                account,
+            } => match self.accounts.get(&application) {
+                None => Err(UserError::AccountAlreadyRemoved),
+                Some(list) => {
+                    let filter: Vec<&(AccountId, String)> =
+                        list.iter().filter(|v| v.0 == account).collect();
+
+                    if filter.is_empty() {
+                        Err(UserError::AccountAlreadyRemoved)
+                    } else {
+                        Ok(vec![UserEvent::Private(PrvUserEvent::AccountRemoved {
+                            application,
+                            account,
+                        })])
+                    }
+                }
+            },
         }
     }
 }

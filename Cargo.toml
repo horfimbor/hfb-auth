@@ -17,8 +17,8 @@ redis = { version = "0.28", features = ["tokio-rustls-comp"] }
 uuid = { version = "1.8", features = ["v4", "v5"] }
 
 # TODO move out
-public-user-event = { path = "public-user-event" }
-public-account-event = { path = "public-account-event" }
+public-user-event = { path = "public-user-event", features = ["server"] }
+public-account-event = { path = "public-account-event", features = ["server"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

@@ -4,17 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-horfimbor-eventsource = { workspace = true, optional = true }
+horfimbor-eventsource = { workspace = true }
 serde.workspace = true
 thiserror.workspace = true
 public-user-event = {workspace = true }
 public-account-event = {workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 url = { version= "2.5", features = ["serde"] }
-rand = "0.8"
-
-[features]
-server = ["horfimbor-eventsource", "public-user-event/server", "public-account-event/server"]
+rand = "0.9"
 
 [lints]
 workspace = true
