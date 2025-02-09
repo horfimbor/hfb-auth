@@ -1,49 +1,31 @@
 #![allow(unused)]
 
-pub mod admin;
-mod authorization;
 mod constants;
-pub mod public;
 mod session;
 mod url_parsing;
 mod user;
+mod consumer;
+mod web;
 
 #[macro_use]
 extern crate rocket;
 
-use crate::constants::APPLICATION_LIST_REDIS_KEY;
-use crate::public::helper::hash_password;
-use anyhow::{bail, Context, Error};
+use web::public::helper::hash_password;
+use anyhow::Context;
 use clap::{Parser, Subcommand, ValueEnum};
 use eventstore::Client as EventstoreClient;
-use futures::future::{try_join_all, BoxFuture};
-use futures::{task, FutureExt};
+use futures::future::try_join_all;
+use futures::FutureExt;
 use hfb_auth_shared::account::AccountState;
-use hfb_auth_shared::application::{
-    ApplicationEvent, ApplicationList, ApplicationState, PrivateApplicationEvent,
-};
+use hfb_auth_shared::application::ApplicationState;
 use hfb_auth_shared::user::{UserCommand, UserRole, UserState};
-use hfb_auth_shared::{AUTH_APPLICATION_STREAM, AUTH_USER_STREAM};
+use hfb_auth_shared::AUTH_USER_STREAM;
 use horfimbor_eventsource::cache_db::redis::StateDb;
-use horfimbor_eventsource::helper::{create_subscription, get_persistent_subscription};
-use horfimbor_eventsource::metadata::Metadata;
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::{Repository, StateRepository};
-use horfimbor_eventsource::Stream;
 use redis::{Client as RedisClient, Commands};
-use rocket::fs::{relative, FileServer};
-use rocket::http::Method;
-use rocket::tokio::time::sleep;
-use rocket::{tokio, Ignite, Rocket};
-use rocket_cors::{AllowedHeaders, AllowedOrigins};
-use rocket_dyn_templates::{context, Template};
-use serde_json::json;
 use std::env;
 use std::future::Future;
-use std::path::Path;
-use std::time::Duration;
-use url::quirks::password;
-use url::Host;
 use uuid::Uuid;
 
 #[derive(Debug, PartialEq, Clone, ValueEnum)]
@@ -157,7 +139,7 @@ async fn main() -> anyhow::Result<()> {
 
             if list.is_empty() || list.contains(&Service::Web) {
                 services.push(
-                    start_server(
+                    web::start_server(
                         auth_user_repository,
                         application_repository,
                         account_repository,
@@ -168,7 +150,7 @@ async fn main() -> anyhow::Result<()> {
             }
 
             if list.is_empty() || list.contains(&Service::Application) {
-                services.push(listen_applications(event_store_db, redis_client).boxed());
+                services.push(consumer::listen_applications(event_store_db, redis_client).boxed());
             }
 
             dbg!(services.len());
@@ -181,145 +163,3 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-async fn listen_applications(event_db: EventstoreClient, redis: RedisClient) -> Result<(), Error> {
-    let stream = Stream::Stream(AUTH_APPLICATION_STREAM);
-    let group_name = "oups";
-
-    create_subscription(&event_db, &stream, group_name)
-        .await
-        .context("cannot create subscription")?;
-
-    let mut sub = get_persistent_subscription(&event_db, &stream, group_name)
-        .await
-        .context("cannot get subscription")?;
-
-    let mut connection = redis.get_connection().context("cannot connect to redis")?;
-
-    let raw_data: Option<String> = connection
-        .get(APPLICATION_LIST_REDIS_KEY)
-        .context("cannot get data")?;
-
-    let mut application_list: Vec<ApplicationList> = match raw_data {
-        None => Vec::new(),
-        Some(list) => {
-            serde_json::from_str(&list).context("cannot deserialize application list in redis")?
-        }
-    };
-    loop {
-        let rcv_event = sub.next().await.expect("cannot get next event");
-
-        let full_event = match rcv_event.event.as_ref() {
-            None => {
-                continue;
-            }
-            Some(event) => event,
-        };
-
-        // FIXME change this metadata check
-        let metadata: Metadata = serde_json::from_slice(full_event.custom_metadata.as_ref())
-            .context("cannot deserialize")?;
-
-        if !metadata.is_event() {
-            sub.ack(rcv_event)
-                .await
-                .context("cannot acknowledge event")?;
-
-            continue;
-        }
-
-        let event = full_event
-            .as_json::<ApplicationEvent>()
-            .expect("cannot deserialize");
-
-        match event {
-            ApplicationEvent::Private(prv) => match prv {
-                PrivateApplicationEvent::Created { name, host, key } => {
-                    application_list.push(ApplicationList {
-                        id: full_event.id.to_string(),
-                        name,
-                        host,
-                    });
-
-                    let data = json!(application_list.clone()).to_string();
-
-                    connection
-                        .set(APPLICATION_LIST_REDIS_KEY, data)
-                        .context("cannot set data in redis")?;
-                }
-                PrivateApplicationEvent::KeyChanged { .. } => {}
-            },
-        }
-
-        sub.ack(rcv_event)
-            .await
-            .context("cannot acknowledge event")?;
-    }
-
-    Ok(())
-}
-
-async fn start_server(
-    auth_user_repository: UserRepository,
-    application_repository: ApplicationRepository,
-    account_repository: AccountRepository,
-    redis: RedisClient,
-) -> Result<(), Error> {
-    let auth_port = env::var("APP_PORT")
-        .context("APP_PORT is not defined")?
-        .parse::<u16>()
-        .context("APP_PORT cannot be parse in u16")?;
-    let auth_host = env::var("APP_HOST").context("APP_HOST is not defined")?;
-
-    let cookie_secret_key =
-        env::var("COOKIE_SECRET_KEY").context("COOKIE_SECRET_KEY must be provided")?;
-
-    let figment = rocket::Config::figment()
-        .merge(("address", "0.0.0.0"))
-        .merge(("port", auth_port))
-        .merge(("template_dir", "server/templates"))
-        .merge(("secret_key", cookie_secret_key));
-
-    let allowed_origins = AllowedOrigins::some_exact(&[auth_host]);
-
-    let cors = rocket_cors::CorsOptions {
-        allowed_origins,
-        allowed_methods: vec![Method::Get, Method::Post]
-            .into_iter()
-            .map(From::from)
-            .collect(),
-        allowed_headers: AllowedHeaders::all(),
-        allow_credentials: true,
-        ..Default::default()
-    }
-    .to_cors()
-    .context("cannot create cors")?;
-
-    let _ = rocket::custom(figment)
-        .manage(auth_user_repository)
-        .manage(application_repository)
-        .manage(account_repository)
-        .manage(redis)
-        .mount("/", admin::get_admin_routes())
-        .mount("/", authorization::get_authorization_routes())
-        .mount("/", user::get_user_routes())
-        .mount("/", public::get_routes())
-        .mount("/", FileServer::from(relative!("web")))
-        .attach(cors)
-        .attach(Template::fairing())
-        .register("/", catchers![general_not_found, internal_error])
-        .launch()
-        .await
-        .context("rocket failed");
-
-    Ok(())
-}
-
-#[catch(404)]
-fn general_not_found() -> Template {
-    Template::render("404", context! {})
-}
-
-#[catch(500)]
-fn internal_error() -> Template {
-    Template::render("500", context! {})
-}

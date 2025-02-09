@@ -1,6 +1,6 @@
 use crate::constants::AUTH_USER_UUID;
-use crate::public::helper;
-use crate::{public, UserRepository};
+use crate::web::public::helper;
+use crate::UserRepository;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHasher};
@@ -12,6 +12,7 @@ use rocket::http::{CookieJar, Status};
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::{context, Template};
+use crate::web::public;
 
 #[get("/register")]
 pub async fn register(cookies: &CookieJar<'_>) -> Template {

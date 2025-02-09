@@ -27,6 +27,7 @@ reset-password uuid:
 precommit:
     cargo fmt
     cargo clippy
+    cargo test
 
 
 deploy-local:

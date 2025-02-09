@@ -1,5 +1,5 @@
 use crate::constants::AUTH_APPLICATION_UUID;
-use crate::public::connexion;
+use crate::web::public::connexion;
 use crate::session::{base_host, get_session, set_session};
 use crate::url_parsing::RedirectUrl;
 use crate::user::User;
