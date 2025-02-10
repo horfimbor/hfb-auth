@@ -165,12 +165,23 @@ impl UserState {
         self.role == Some(UserRole::Admin)
     }
 
-    pub fn accounts(&self, application: &ApplicationId) -> Vec<(AccountId, String)> {
-        match self.accounts.get(application) {
+    pub fn accounts(&self, application_id: &ApplicationId) -> Vec<(AccountId, String)> {
+        match self.accounts.get(application_id) {
             None => {
                 vec![]
             }
-            Some(l) => l.clone(),
+            Some(list) => list.clone(),
+        }
+    }
+
+    pub fn has_account(&self, application_id: &ApplicationId, account_id: &AccountId) -> bool {
+        match self.accounts.get(application_id) {
+            None => false,
+            Some(list) => {
+                let filtered: Vec<&(AccountId, String)> =
+                    list.iter().filter(|a| a.0 == *account_id).collect();
+                !filtered.is_empty()
+            }
         }
     }
 }

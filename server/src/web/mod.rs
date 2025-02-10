@@ -10,6 +10,7 @@ use std::env;
 
 pub mod admin;
 pub mod application;
+pub mod error;
 pub mod public;
 
 pub async fn start_server(
@@ -18,6 +19,9 @@ pub async fn start_server(
     account_repository: &AccountRepository,
     redis: &RedisClient,
 ) -> Result<(), Error> {
+
+    println!("start");
+
     let auth_port = env::var("APP_PORT")
         .context("APP_PORT is not defined")?
         .parse::<u16>()
@@ -57,6 +61,7 @@ pub async fn start_server(
         .mount("/", application::get_authorization_routes())
         .mount("/", user::get_user_routes())
         .mount("/", public::get_routes())
+        .mount("/", error::get_routes())
         .mount("/", FileServer::from(relative!("web")))
         .attach(cors)
         .attach(Template::fairing())
@@ -75,5 +80,10 @@ pub fn general_not_found() -> Template {
 
 #[catch(500)]
 pub fn internal_error() -> Template {
-    Template::render("500", context! {})
+    Template::render(
+        "500",
+        context! {
+            error : "No clue, it's just a generic error 😭"
+        },
+    )
 }

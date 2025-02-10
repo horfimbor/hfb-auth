@@ -4,6 +4,7 @@
 {% block content %}
 
 <h2>Error 500</h2>
-<p>General error: All your base are belong to us</p>
+<pre>{{error}}</pre>
+<p>on file {{file}}:{{line}}</p>
 
 {% endblock content %}

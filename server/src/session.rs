@@ -10,11 +10,6 @@ use std::env;
 use url::Url;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct SessionError {
-    pub message: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LoggedInUser {
     pub user_id: ModelKey,
     pub pseudo: String,
@@ -24,7 +19,6 @@ pub struct LoggedInUser {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SessionData {
     application: Option<ModelKey>,
-    error: Option<SessionError>,
     redirect_url: Url,
     user: Option<LoggedInUser>,
     // csrf: TODO
@@ -40,7 +34,6 @@ impl Default for SessionData {
         Self {
             user: None,
             redirect_url: Url::parse(&auth_host).expect("APP_HOST must be a valid url"),
-            error: None,
             application: None,
         }
     }
@@ -53,14 +46,6 @@ impl SessionData {
 
     pub fn set_redirect_url(&mut self, redirect_url: Url) {
         self.redirect_url = redirect_url;
-    }
-
-    pub fn error(&self) -> &Option<SessionError> {
-        &self.error
-    }
-
-    pub fn set_error(&mut self, error: Option<SessionError>) {
-        self.error = error;
     }
 
     pub fn user(&self) -> &Option<LoggedInUser> {

@@ -1,7 +1,9 @@
 use crate::constants::AUTH_USER_UUID;
+use crate::web::error::ErrorPage;
 use crate::web::public;
 use crate::web::public::helper;
-use crate::UserRepository;
+use crate::{anyhow_error, other_error, UserRepository};
+use anyhow::anyhow;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHasher};
@@ -32,13 +34,13 @@ pub async fn register_form(
     state_repository: &State<UserRepository>,
     register: Form<Register<'_>>,
     cookies: &CookieJar<'_>,
-) -> Result<Redirect, Status> {
+) -> Result<Redirect, ErrorPage> {
     let key = ModelKey::new_uuid_v8(AUTH_USER_STREAM, AUTH_USER_UUID, register.email);
 
     if register.password != register.password_check {
         todo!("handle password diff");
     }
-    let password_hash = helper::hash_password(register.password)?;
+    let password_hash = helper::hash_password(register.password).map_err(|e| anyhow_error!(e))?;
 
     state_repository
         .add_command(
@@ -50,10 +52,7 @@ pub async fn register_form(
             None,
         )
         .await
-        .map_err(|e| {
-            dbg!(e);
-            Status::InternalServerError
-        })?;
+        .map_err(|e| other_error!(e))?;
 
     Ok(Redirect::to(uri!(public::index)))
 }

@@ -11,7 +11,7 @@ mod web;
 extern crate rocket;
 
 use crate::consumer::account::listen_accounts;
-use anyhow::Context;
+use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use consumer::application;
 use eventstore::Client as EventstoreClient;
@@ -27,6 +27,7 @@ use horfimbor_eventsource::repository::{Repository, StateRepository};
 use redis::{Client as RedisClient, Commands};
 use std::env;
 use std::future::Future;
+use std::sync::mpsc::{channel, Receiver};
 use uuid::Uuid;
 use web::public::helper::hash_password;
 
@@ -138,7 +139,8 @@ async fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Command::Service { list } => {
-            let mut services = Vec::new();
+            
+            let mut services = vec![];
 
             if list.is_empty() || list.contains(&Service::Application) {
                 services

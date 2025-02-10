@@ -1,10 +1,12 @@
 use horfimbor_eventsource::horfimbor_eventsource_derive::{Command, Event, StateNamed};
 use horfimbor_eventsource::model_key::ModelKey;
+use std::iter;
 
 use horfimbor_eventsource::{
     Command, CommandName, Dto, Event, EventName, State, StateName, StateNamed,
 };
 use public_account_event::PubAccountEvent;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -22,6 +24,7 @@ pub enum AccountCommand {
     Validate,
     Suspend,
     Resume,
+    NewOneTimeToken,
 }
 
 #[derive(Error, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -89,6 +92,14 @@ impl AccountState {
             PrvAccountEvent::OneTimeTokenRemoved => self.one_time_token = None,
         }
     }
+
+    fn generate_one_time_token() -> String {
+        const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyz";
+        let mut rng = rand::rng();
+        let one_char = || CHARSET[rng.random_range(0..CHARSET.len())] as char;
+        iter::repeat_with(one_char).take(20).collect()
+    }
+
     fn play_public_event(&mut self, event: &PubAccountEvent) {
         match event {
             PubAccountEvent::AccountCreated { .. } => {}
@@ -143,19 +154,22 @@ impl State for AccountState {
                         name: name.clone(),
                     }),
                     AccountEvent::Private(PrvAccountEvent::OneTimeTokenAdded {
-                        token: "bob".to_string(),
+                        token: Self::generate_one_time_token(),
                     }),
                 ])
             }
-            AccountCommand::Validate => Ok(vec![
-                AccountEvent::Public(PubAccountEvent::AccountCreated {
-                    user_id: self.user_id.clone(),
-                    app_id: self.app_id.clone(),
-                    name: self.name.clone(),
-                }),
-                AccountEvent::Public(PubAccountEvent::AccountResumed),
-                AccountEvent::Private(PrvAccountEvent::OneTimeTokenRemoved),
-            ]),
+            AccountCommand::Validate => {
+                // TODO send account created only once
+                Ok(vec![
+                    AccountEvent::Public(PubAccountEvent::AccountCreated {
+                        user_id: self.user_id.clone(),
+                        app_id: self.app_id.clone(),
+                        name: self.name.clone(),
+                    }),
+                    AccountEvent::Public(PubAccountEvent::AccountResumed),
+                    AccountEvent::Private(PrvAccountEvent::OneTimeTokenRemoved),
+                ])
+            }
             AccountCommand::Suspend => {
                 if self.suspended {
                     Err(AccountError::AlreadySuspended)
@@ -172,6 +186,11 @@ impl State for AccountState {
                     Err(AccountError::NotSuspended)
                 }
             }
+            AccountCommand::NewOneTimeToken => Ok(vec![AccountEvent::Private(
+                PrvAccountEvent::OneTimeTokenAdded {
+                    token: Self::generate_one_time_token(),
+                },
+            )]),
         }
     }
 }
