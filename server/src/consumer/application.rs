@@ -1,5 +1,5 @@
 use crate::constants::APPLICATION_LIST_REDIS_KEY;
-use anyhow::{Context, Error};
+use anyhow::{Context, Result};
 use eventstore::Client as EventstoreClient;
 use hfb_auth_shared::application::{ApplicationEvent, ApplicationList, PrivateApplicationEvent};
 use hfb_auth_shared::AUTH_APPLICATION_STREAM;
@@ -9,10 +9,7 @@ use horfimbor_eventsource::Stream;
 use redis::{Client as RedisClient, Commands};
 use serde_json::json;
 
-pub async fn listen_applications(
-    event_db: &EventstoreClient,
-    redis: &RedisClient,
-) -> Result<(), Error> {
+pub async fn listen_applications(event_db: &EventstoreClient, redis: &RedisClient) -> Result<()> {
     let stream = Stream::Stream(AUTH_APPLICATION_STREAM);
     let group_name = "oups";
 
@@ -37,7 +34,7 @@ pub async fn listen_applications(
         }
     };
     loop {
-        let rcv_event = sub.next().await.expect("cannot get next event");
+        let rcv_event = sub.next().await.context("cannot get next event")?;
 
         let full_event = match rcv_event.event.as_ref() {
             None => {
@@ -60,7 +57,7 @@ pub async fn listen_applications(
 
         let event = full_event
             .as_json::<ApplicationEvent>()
-            .expect("cannot deserialize");
+            .context("cannot deserialize")?;
 
         match event {
             ApplicationEvent::Private(prv) => match prv {

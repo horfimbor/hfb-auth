@@ -1,6 +1,6 @@
 use crate::constants::APPLICATION_LIST_REDIS_KEY;
 use crate::UserRepository;
-use anyhow::{Context, Error};
+use anyhow::{Context, Result};
 use eventstore::Client as EventstoreClient;
 use hfb_auth_shared::account::AccountEvent;
 use hfb_auth_shared::application::{ApplicationEvent, ApplicationList, PrivateApplicationEvent};
@@ -19,7 +19,7 @@ pub async fn listen_accounts(
     event_db: &EventstoreClient,
     redis: &RedisClient,
     user_repository: &UserRepository,
-) -> Result<(), Error> {
+) -> Result<()> {
     let stream = Stream::Stream(AUTH_ACCOUNT_STREAM);
     let group_name = "wip";
 
@@ -32,7 +32,7 @@ pub async fn listen_accounts(
         .context("cannot get subscription")?;
 
     loop {
-        let rcv_event = sub.next().await.expect("cannot get next event");
+        let rcv_event = sub.next().await.context("cannot get next event")?;
 
         let full_event = match rcv_event.event.as_ref() {
             None => {
@@ -55,7 +55,7 @@ pub async fn listen_accounts(
 
         let event = full_event
             .as_json::<AccountEvent>()
-            .expect("cannot deserialize");
+            .context("cannot deserialize")?;
 
         match event {
             AccountEvent::Private(_) => {}

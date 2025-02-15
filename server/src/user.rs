@@ -1,6 +1,8 @@
 use crate::session::{get_session, LoggedInUser};
 use crate::web::admin::application;
+use crate::web::error::ErrorPage;
 use crate::UserRepository;
+use anyhow::Error;
 use hfb_auth_shared::user::{UserRole, UserState};
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::{ModelWithPosition, Repository};
@@ -51,10 +53,13 @@ impl Admin {
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for User {
-    type Error = ();
+    type Error = Error;
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        if let Some(data) = get_session(request.cookies()).user() {
+        let Ok(session) = get_session(request.cookies()) else {
+            return Outcome::Forward(Default::default());
+        };
+        if let Some(data) = session.user() {
             Outcome::Success(User { data: data.clone() })
         } else {
             Outcome::Forward(Default::default())
@@ -64,10 +69,13 @@ impl<'r> FromRequest<'r> for User {
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for Admin {
-    type Error = ();
+    type Error = Error;
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-        if let Some(data) = get_session(request.cookies()).user() {
+        let Ok(session) = get_session(request.cookies()) else {
+            return Outcome::Forward(Default::default());
+        };
+        if let Some(data) = session.user() {
             match data.is_admin {
                 true => Outcome::Success(Admin { data: data.clone() }),
                 false => Outcome::Forward(Default::default()),

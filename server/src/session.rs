@@ -1,6 +1,6 @@
 use crate::constants::COOKIE_SESSION;
 use crate::url_parsing::RedirectUrl;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use futures::{FutureExt, TryFutureExt};
 use hfb_auth_shared::user::UserRole;
 use horfimbor_eventsource::model_key::ModelKey;
@@ -24,19 +24,8 @@ pub struct SessionData {
     // csrf: TODO
 }
 
-pub fn base_host() -> String {
-    env::var("APP_HOST").expect("APP_HOST was defined at launch.")
-}
-
-impl Default for SessionData {
-    fn default() -> Self {
-        let auth_host = base_host();
-        Self {
-            user: None,
-            redirect_url: Url::parse(&auth_host).expect("APP_HOST must be a valid url"),
-            application: None,
-        }
-    }
+pub fn base_host() -> Result<String> {
+    env::var("APP_HOST").context("APP_HOST was defined at launch.")
 }
 
 impl SessionData {
@@ -65,19 +54,28 @@ impl SessionData {
     }
 }
 
-pub fn get_session(cookies: &CookieJar<'_>) -> SessionData {
-    cookies
-        .get_private(COOKIE_SESSION)
-        .and_then(
-            |data| match serde_json::from_str::<SessionData>(data.value()) {
+pub fn get_session(cookies: &CookieJar<'_>) -> Result<SessionData> {
+    let from_cookie =
+        cookies.get_private(COOKIE_SESSION).and_then(|data| {
+            match serde_json::from_str::<SessionData>(data.value()) {
                 Ok(d) => Some(d),
                 Err(e) => {
                     dbg!(e);
                     None
                 }
-            },
-        )
-        .unwrap_or_default()
+            }
+        });
+    match from_cookie {
+        None => {
+            let auth_host = base_host()?;
+            Ok(SessionData {
+                application: None,
+                redirect_url: Url::parse(&auth_host).context("APP_HOST must be a valid url")?,
+                user: None,
+            })
+        }
+        Some(c) => Ok(c),
+    }
 }
 
 pub fn set_session(cookies: &CookieJar<'_>, data: SessionData) -> Result<()> {

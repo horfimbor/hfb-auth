@@ -61,6 +61,7 @@ impl Default for ApplicationState {
     fn default() -> Self {
         Self {
             name: "".to_string(),
+            #[allow(clippy::expect_used)]
             host: Url::parse("https://aedius.fr").expect("default url for application is invalid"),
             key: "".to_string(),
         }

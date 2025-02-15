@@ -5,7 +5,7 @@ use crate::user::User;
 use crate::web::error::ErrorPage;
 use crate::web::public::connexion;
 use crate::{other_error, AccountRepository, ApplicationRepository, UserRepository};
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use hfb_auth_shared::account::AccountCommand;
 use hfb_auth_shared::application::ApplicationState;
 use hfb_auth_shared::user::UserCommand;
@@ -15,6 +15,7 @@ use horfimbor_eventsource::repository::Repository;
 use horfimbor_eventsource::State as HorfimborState;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use rocket::form::Form;
+use rocket::http::hyper::body::HttpBody;
 use rocket::http::uri::{Origin, Uri};
 use rocket::http::{CookieJar, Status};
 use rocket::response::Redirect;
@@ -38,12 +39,16 @@ pub async fn authorize(
     application_repository: &State<ApplicationRepository>,
     repository_user: &State<UserRepository>,
 ) -> Result<Template, ErrorPage> {
-    dbg!(&redirect.url());
+    let redirect = redirect
+        .url()
+        .context("cannot get redirect url from url")
+        .map_err(|e| other_error!(e))?;
+    dbg!(&redirect);
 
     let application_id = ModelKey::new_uuid_v8(
         AUTH_APPLICATION_STREAM,
         AUTH_APPLICATION_UUID,
-        redirect.url().as_str(),
+        redirect.as_ref(),
     );
 
     dbg!(&application_id);
@@ -57,8 +62,8 @@ pub async fn authorize(
         return Err(other_error!("application not found"));
     }
 
-    let mut session = get_session(cookies);
-    session.set_redirect_url(redirect.url());
+    let mut session = get_session(cookies).map_err(|e| other_error!(e))?;
+    session.set_redirect_url(redirect);
     session.set_application(Some(application_id.clone()));
     set_session(cookies, session);
 
@@ -91,8 +96,8 @@ pub async fn authorize_guest(
     redirect: RedirectUrl,
     uri: &Origin<'_>,
 ) -> Result<Redirect, ErrorPage> {
-    let mut session = get_session(cookies);
-    let redirect = format!("{}{}", base_host(), uri);
+    let mut session = get_session(cookies).map_err(|e| other_error!(e))?;
+    let redirect = format!("{}{}", base_host().map_err(|e| other_error!(e))?, uri);
     let url = Url::parse(&redirect).map_err(|e| other_error!(e))?;
     session.set_redirect_url(url);
     dbg!(&session.redirect_url().to_string());
@@ -118,7 +123,7 @@ pub async fn authorize_form(
 ) -> Result<Redirect, ErrorPage> {
     dbg!(&authorize);
 
-    let mut session = get_session(cookies);
+    let mut session = get_session(cookies).map_err(|e| other_error!(e))?;
     let Some(app_key) = session.application() else {
         return Err(other_error!("application not found"));
     };

@@ -26,11 +26,15 @@ pub struct Application<'r> {
 
 #[get("/admin/applications")]
 pub async fn list(_admin: Admin, redis: &State<RedisClient>) -> Result<Template, ErrorPage> {
-    let mut connection = redis.get_connection().expect("cannot connect to redis");
+    let mut connection = redis
+        .get_connection()
+        .context("annot get redis connection")
+        .map_err(|e| anyhow_error!(e))?;
 
     let raw_data: Option<String> = connection
         .get(APPLICATION_LIST_REDIS_KEY)
-        .expect("cannot get data");
+        .context("cannot get data")
+        .map_err(|e| anyhow_error!(e))?;
 
     let application_list: Vec<ApplicationList> = match raw_data {
         None => Vec::new(),

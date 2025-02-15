@@ -12,6 +12,7 @@ public-account-event = {workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 url = { version= "2.5", features = ["serde"] }
 rand = "0.9"
+lazy_static = "1.5.0"
 
 [lints]
 workspace = true

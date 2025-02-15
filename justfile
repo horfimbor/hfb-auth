@@ -26,7 +26,7 @@ reset-password uuid:
 
 precommit:
     cargo fmt
-    cargo clippy
+    cargo clippy -- -D clippy::expect_used -D clippy::panic -D clippy::unwrap_used
     cargo test
 
 

@@ -15,7 +15,6 @@ pub struct ErrorPage {
     error: Template,
 }
 
-
 impl ErrorPage {
     #[cfg(debug_assertions)]
     pub fn new(error: Error, file: &str, line: u32) -> Self {
@@ -32,9 +31,8 @@ impl ErrorPage {
     }
     #[cfg(not(debug_assertions))]
     pub fn new(error: Error, file: &str, line: u32) -> Self {
-        
         println!("{file}:{line} : {error}");
-        
+
         Self {
             error: Template::render(
                 "500",

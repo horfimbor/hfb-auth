@@ -19,7 +19,6 @@ pub async fn start_server(
     account_repository: &AccountRepository,
     redis: &RedisClient,
 ) -> Result<(), Error> {
-
     println!("start");
 
     let auth_port = env::var("APP_PORT")

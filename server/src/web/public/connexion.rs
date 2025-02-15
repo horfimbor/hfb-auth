@@ -18,10 +18,10 @@ use rocket_dyn_templates::{context, Template};
 use url::Url;
 
 #[get("/login")]
-pub async fn index(cookies: &CookieJar<'_>) -> Template {
-    let mut session = get_session(cookies);
+pub async fn index(cookies: &CookieJar<'_>) -> Result<Template, ErrorPage> {
+    let mut session = get_session(cookies).map_err(|e| other_error!(e))?;
 
-    render_login(None, None)
+    Ok(render_login(None, None))
 }
 
 fn render_login(redirect: Option<Url>, error: Option<&str>) -> Template {
@@ -74,7 +74,7 @@ pub async fn login(
         .await
         .map_err(|e| other_error!(e))?;
 
-    let mut session = get_session(cookies);
+    let mut session = get_session(cookies).map_err(|e| other_error!(e))?;
     session.set_user(Some(LoggedInUser {
         user_id: key,
         pseudo: user.pseudo().to_string(),

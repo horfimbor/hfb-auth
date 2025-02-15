@@ -1,19 +1,28 @@
+use core::fmt;
 use rocket::form::error::ErrorKind;
 use rocket::form::{DataField, Errors, FromFormField, ValueField};
 use rocket::http::uri::fmt::Query;
 use rocket::http::uri::fmt::{Formatter, FromUriParam, UriDisplay};
 use rocket::response::status::BadRequest;
 use serde::{Deserialize, Serialize};
-use url::{Host, Url};
+use url::{Host, ParseError, Url};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RedirectUrl {
-    url: Url,
+    url: Option<Url>,
+    #[serde(skip)]
+    error: Option<ParseError>,
 }
 
 impl RedirectUrl {
-    pub fn url(&self) -> Url {
-        self.url.clone()
+    pub fn url(&self) -> Result<Url, ParseError> {
+        match self.url.clone() {
+            Some(url) => Ok(url),
+            None => match self.error {
+                None => Err(ParseError::EmptyHost),
+                Some(e) => Err(e),
+            },
+        }
     }
 }
 
@@ -28,7 +37,10 @@ impl<'r> FromFormField<'r> for RedirectUrl {
             .host()
             .ok_or(ErrorKind::Validation("no host".into()))?;
         match host {
-            Host::Domain(s) => Ok(RedirectUrl { url }),
+            Host::Domain(s) => Ok(RedirectUrl {
+                url: Some(url),
+                error: None,
+            }),
             Host::Ipv4(_) => Err(Errors::from(rocket::form::Error::validation(
                 "domain cannot be an ip v4",
             ))),
@@ -46,16 +58,28 @@ impl<'r> FromFormField<'r> for RedirectUrl {
 impl FromUriParam<Query, String> for RedirectUrl {
     type Target = RedirectUrl;
 
-    fn from_uri_param(s: String) -> RedirectUrl {
-        let url = Url::parse(&s).unwrap();
+    fn from_uri_param(s: String) -> Self::Target {
+        let url = Url::parse(&s);
 
-        RedirectUrl { url }
+        match url {
+            Ok(url) => RedirectUrl {
+                url: Some(url),
+                error: None,
+            },
+            Err(error) => RedirectUrl {
+                url: None,
+                error: Some(error),
+            },
+        }
     }
 }
 
 impl UriDisplay<Query> for RedirectUrl {
     fn fmt(&self, f: &mut Formatter<'_, Query>) -> std::fmt::Result {
         f.write_raw("redirect:")?;
-        UriDisplay::fmt(&self.url.as_str(), f)
+        match &self.url {
+            None => Err(fmt::Error),
+            Some(url) => UriDisplay::fmt(url.as_str(), f),
+        }
     }
 }

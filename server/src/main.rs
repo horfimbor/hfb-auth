@@ -9,6 +9,7 @@ mod web;
 
 #[macro_use]
 extern crate rocket;
+extern crate core;
 
 use crate::consumer::account::listen_accounts;
 use anyhow::{anyhow, bail, Context, Result};
@@ -16,7 +17,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use consumer::application;
 use eventstore::Client as EventstoreClient;
 use futures::future::try_join_all;
-use futures::FutureExt;
+use futures::{FutureExt, StreamExt};
 use hfb_auth_shared::account::AccountState;
 use hfb_auth_shared::application::ApplicationState;
 use hfb_auth_shared::user::{UserCommand, UserRole, UserState};
@@ -25,6 +26,9 @@ use horfimbor_eventsource::cache_db::redis::StateDb;
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::{Repository, StateRepository};
 use redis::{Client as RedisClient, Commands};
+use rocket::tokio::spawn;
+use signal_hook::consts::signal::*;
+use signal_hook_tokio::Signals;
 use std::env;
 use std::future::Future;
 use std::sync::mpsc::{channel, Receiver};
@@ -76,7 +80,7 @@ type AccountStateCache = StateDb<AccountState>;
 type AccountRepository = StateRepository<AccountState, AccountStateCache>;
 
 #[rocket::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<()> {
     let args: Args = Args::parse();
 
     if !args.real_env {
@@ -128,7 +132,8 @@ async fn main() -> anyhow::Result<()> {
                     .add_command(
                         &key,
                         UserCommand::ChangePassword {
-                            password_hash: hash_password(&password).unwrap(),
+                            password_hash: hash_password(&password)
+                                .context("cannot hash password")?,
                         },
                         None,
                     )
@@ -139,7 +144,6 @@ async fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Command::Service { list } => {
-            
             let mut services = vec![];
 
             if list.is_empty() || list.contains(&Service::Application) {
@@ -163,7 +167,11 @@ async fn main() -> anyhow::Result<()> {
                     .boxed(),
                 );
             }
+            let signals = Signals::new([SIGTERM, SIGINT, SIGQUIT])?;
+            let handle = signals.handle();
 
+            let signals_task = handle_signals(signals).boxed();
+            services.push(signals_task);
             dbg!(services.len());
 
             try_join_all(services)
@@ -172,4 +180,12 @@ async fn main() -> anyhow::Result<()> {
                 .context("some service failed")
         }
     }
+}
+
+async fn handle_signals(mut signals: Signals) -> Result<()> {
+    if signals.next().await.is_some() {
+        bail!("Exit required")
+    }
+
+    Ok(())
 }

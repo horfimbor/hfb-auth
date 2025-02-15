@@ -1,0 +1,24 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  check:
+    name: "Build and Test"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set env
+        run: echo "WASM_TAG=index-v0-1-0" >> $GITHUB_ENV
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: beta
+          components: clippy
+      - name: Run tests with cucumber
+        run: cargo test -p template-state --test template-state-test
+      - name: Run clippy
+        run: cargo clippy -- -D clippy::expect_used -D clippy::panic  -D clippy::unwrap_used

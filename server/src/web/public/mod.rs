@@ -2,8 +2,10 @@ pub mod connexion;
 pub mod helper;
 mod registration;
 
+use crate::anyhow;
 use crate::session::get_session;
-use crate::user;
+use crate::web::error::ErrorPage;
+use crate::{other_error, user};
 use hfb_auth_shared::AUTH_USER_STREAM;
 use horfimbor_eventsource::model_key::ModelKey;
 use jsonwebtoken::{encode, EncodingKey, Header};
@@ -29,11 +31,11 @@ pub fn get_routes() -> Vec<Route> {
 }
 
 #[get("/")]
-async fn index(cookies: &CookieJar<'_>) -> Redirect {
-    let session = get_session(cookies);
+async fn index(cookies: &CookieJar<'_>) -> Result<Redirect, ErrorPage> {
+    let session = get_session(cookies).map_err(|e| other_error!(e))?;
 
-    match session.user() {
+    Ok(match session.user() {
         None => Redirect::to(uri!(connexion::index())),
         Some(data) => Redirect::to(uri!(user::index())),
-    }
+    })
 }
