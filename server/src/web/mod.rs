@@ -82,6 +82,7 @@ pub fn internal_error() -> Template {
     Template::render(
         "500",
         context! {
+            file: "",
             error : "No clue, it's just a generic error 😭"
         },
     )

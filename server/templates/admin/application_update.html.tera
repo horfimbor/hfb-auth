@@ -10,10 +10,10 @@
 <form action="/admin/new-application" method="post">
     Update Application #TODO
     <div class="inputBox">
-        <input type="text" required name="name" /> <i>Name</i>
+        <input type="text" required name="name" minlength="3" maxlength="20"/> <i>Name</i>
     </div>
     <div class="inputBox">
-        <input type="text" required name="host" /> <i>Host</i>
+        <input type="text" required name="host" minlength="3" maxlength="128"/> <i>Host</i>
     </div>
     <div class="inputBox">
         <input type="hidden" name="csrf" value="{{csrf}}"/>

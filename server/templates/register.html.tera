@@ -5,17 +5,16 @@
 <h2>Sign up</h2>
 <form action="/register" method="post">
     <div class="inputBox">
-        <input type="text" required name="identity" /> <i>Identifier</i>
+        <input type="text" required name="identity"  minlength="10" maxlength="50"  /> <i>Identifier</i>
     </div>
     <div class="inputBox">
-        <input type="text" required name="pseudo" /> <i>Pseudonym</i>
-    </div>
-
-    <div class="inputBox">
-        <input type="password" required name="password" /> <i>Password</i>
+        <input type="text" required name="pseudo"  minlength="3" maxlength="20"  /> <i>Pseudonym</i>
     </div>
     <div class="inputBox">
-        <input type="password" required name="password_check" /> <i>Password check</i>
+        <input type="password" required name="password"  minlength="10" maxlength="50"  /> <i>Password</i>
+    </div>
+    <div class="inputBox">
+        <input type="password" required name="password_check"  minlength="10" maxlength="50"  /> <i>Password check</i>
     </div>
     <div class="inputBox">
         <input type="hidden" name="csrf" value="{{csrf}}"/>

@@ -36,6 +36,7 @@ pub async fn register(cookies: &CookieJar<'_>) -> Result<Template, ErrorPage> {
     ))
 }
 
+// TODO check field length
 #[derive(FromForm, Debug)]
 pub struct Register<'r> {
     identity: &'r str,

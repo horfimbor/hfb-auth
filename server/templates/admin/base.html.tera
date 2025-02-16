@@ -14,14 +14,8 @@
 <body>
 
 <section>
-    {% for i in range(end=200) %}
-    <span></span>
-    {% endfor %}
-
-    <div class="container">
-        <div class="content">
-            {% block content %} {% endblock %}
-        </div>
+    <div class="content">
+        {% block content %} {% endblock %}
     </div>
 </section>
 </body>

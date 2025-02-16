@@ -7,9 +7,9 @@
 <ul>
     <li>pseudo : {{account.pseudo}}</li>
     {% if is_admin %}
-        <li>admin : yes</li>
+    <li>admin : yes</li>
     {% else %}
-        <li>admin : no</li>
+    <li>admin : no</li>
     {% endif %}
 </ul>
 <div class="links">

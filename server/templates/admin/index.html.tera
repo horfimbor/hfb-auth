@@ -9,7 +9,7 @@
 {% endif %}
 
 <p>
-empty for now
+    empty for now
 </p>
 
 {% endblock content %}
