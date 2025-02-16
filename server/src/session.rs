@@ -1,6 +1,7 @@
 use crate::constants::COOKIE_SESSION;
 use crate::url_parsing::RedirectUrl;
 use anyhow::{Context, Result};
+use chrono::{DateTime, Utc};
 use futures::{FutureExt, TryFutureExt};
 use hfb_auth_shared::user::UserRole;
 use horfimbor_eventsource::model_key::ModelKey;
@@ -17,11 +18,17 @@ pub struct LoggedInUser {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Csrf {
+    value: String,
+    expire: DateTime<Utc>,
+    form: String,
+}
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SessionData {
     application: Option<ModelKey>,
     redirect_url: Url,
     user: Option<LoggedInUser>,
-    // csrf: TODO
+    csrf: Option<Csrf>, // TODO use in each form
 }
 
 pub fn base_host() -> Result<String> {
@@ -72,6 +79,7 @@ pub fn get_session(cookies: &CookieJar<'_>) -> Result<SessionData> {
                 application: None,
                 redirect_url: Url::parse(&auth_host).context("APP_HOST must be a valid url")?,
                 user: None,
+                csrf: None,
             })
         }
         Some(c) => Ok(c),

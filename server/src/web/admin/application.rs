@@ -1,7 +1,7 @@
 use crate::constants::{APPLICATION_LIST_REDIS_KEY, AUTH_APPLICATION_UUID};
 use crate::user::Admin;
 use crate::web::error::ErrorPage;
-use crate::{anyhow_error, other_error, ApplicationRepository};
+use crate::{anyhow_error_page, other_error_page, ApplicationRepository};
 use anyhow::anyhow;
 use anyhow::Context;
 use eventstore::Client;
@@ -29,18 +29,18 @@ pub async fn list(_admin: Admin, redis: &State<RedisClient>) -> Result<Template,
     let mut connection = redis
         .get_connection()
         .context("annot get redis connection")
-        .map_err(|e| anyhow_error!(e))?;
+        .map_err(|e| anyhow_error_page!(e))?;
 
     let raw_data: Option<String> = connection
         .get(APPLICATION_LIST_REDIS_KEY)
         .context("cannot get data")
-        .map_err(|e| anyhow_error!(e))?;
+        .map_err(|e| anyhow_error_page!(e))?;
 
     let application_list: Vec<ApplicationList> = match raw_data {
         None => Vec::new(),
         Some(list) => serde_json::from_str(&list)
             .context("cannot deserialize application list in redis")
-            .map_err(|a| anyhow_error!(a))?,
+            .map_err(|a| anyhow_error_page!(a))?,
     };
 
     Ok(Template::render(
@@ -65,7 +65,7 @@ pub async fn update(
 ) -> Result<Template, ErrorPage> {
     let uuid = match id.parse::<Uuid>() {
         Ok(u) => u,
-        Err(e) => return Err(other_error!(e)),
+        Err(e) => return Err(other_error_page!(e)),
     };
     let key = ModelKey::new(AUTH_APPLICATION_STREAM, uuid);
     todo!("todo update");
@@ -95,12 +95,12 @@ pub async fn post_create(
             &key,
             ApplicationCommand::Create {
                 name: application.name.to_string(),
-                host: Url::parse(application.host).map_err(|e| other_error!(e))?,
+                host: Url::parse(application.host).map_err(|e| other_error_page!(e))?,
             },
             None,
         )
         .await
-        .map_err(|e| other_error!(e))?;
+        .map_err(|e| other_error_page!(e))?;
 
     Ok(Template::render("admin/index", context! {}))
 }

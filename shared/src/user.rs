@@ -30,7 +30,7 @@ pub struct UserState {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum UserCommand {
     Create {
-        pseudo: String,
+        pseudo: String, // TODO check pseudo is uniq
         password_hash: String,
     },
     ChangePassword {

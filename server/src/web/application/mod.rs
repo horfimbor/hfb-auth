@@ -2,9 +2,12 @@ use crate::constants::AUTH_APPLICATION_UUID;
 use crate::session::{base_host, get_session, set_session};
 use crate::url_parsing::RedirectUrl;
 use crate::user::User;
-use crate::web::error::ErrorPage;
+use crate::web::error::{ErrorApi, ErrorPage};
 use crate::web::public::connexion;
-use crate::{other_error, AccountRepository, ApplicationRepository, UserRepository};
+use crate::{
+    anyhow_error_page, other_error_api, other_error_page, AccountRepository, ApplicationRepository,
+    UserRepository,
+};
 use anyhow::{anyhow, Context};
 use hfb_auth_shared::account::AccountCommand;
 use hfb_auth_shared::application::ApplicationState;
@@ -42,7 +45,7 @@ pub async fn authorize(
     let redirect = redirect
         .url()
         .context("cannot get redirect url from url")
-        .map_err(|e| other_error!(e))?;
+        .map_err(|e| other_error_page!(e))?;
     dbg!(&redirect);
 
     let application_id = ModelKey::new_uuid_v8(
@@ -56,13 +59,13 @@ pub async fn authorize(
     let application = application_repository
         .get_model(&application_id)
         .await
-        .map_err(|e| other_error!(e))?;
+        .map_err(|e| other_error_page!(e))?;
 
     if *application.state() == ApplicationState::default() {
-        return Err(other_error!("application not found"));
+        return Err(other_error_page!("application not found"));
     }
 
-    let mut session = get_session(cookies).map_err(|e| other_error!(e))?;
+    let mut session = get_session(cookies).map_err(|e| other_error_page!(e))?;
     session.set_redirect_url(redirect);
     session.set_application(Some(application_id.clone()));
     set_session(cookies, session);
@@ -70,7 +73,7 @@ pub async fn authorize(
     let user = repository_user
         .get_model(&user.data().user_id)
         .await
-        .map_err(|e| other_error!(e))?;
+        .map_err(|e| other_error_page!(e))?;
 
     dbg!(user.state().accounts(&application_id));
 
@@ -96,9 +99,9 @@ pub async fn authorize_guest(
     redirect: RedirectUrl,
     uri: &Origin<'_>,
 ) -> Result<Redirect, ErrorPage> {
-    let mut session = get_session(cookies).map_err(|e| other_error!(e))?;
-    let redirect = format!("{}{}", base_host().map_err(|e| other_error!(e))?, uri);
-    let url = Url::parse(&redirect).map_err(|e| other_error!(e))?;
+    let mut session = get_session(cookies).map_err(|e| other_error_page!(e))?;
+    let redirect = format!("{}{}", base_host().map_err(|e| other_error_page!(e))?, uri);
+    let url = Url::parse(&redirect).map_err(|e| other_error_page!(e))?;
     session.set_redirect_url(url);
     dbg!(&session.redirect_url().to_string());
     set_session(cookies, session);
@@ -123,20 +126,20 @@ pub async fn authorize_form(
 ) -> Result<Redirect, ErrorPage> {
     dbg!(&authorize);
 
-    let mut session = get_session(cookies).map_err(|e| other_error!(e))?;
+    let mut session = get_session(cookies).map_err(|e| other_error_page!(e))?;
     let Some(app_key) = session.application() else {
-        return Err(other_error!("application not found"));
+        return Err(other_error_page!("application not found"));
     };
 
     let application = repository_apps
         .get_model(app_key)
         .await
-        .map_err(|e| other_error!(e))?;
+        .map_err(|e| other_error_page!(e))?;
 
     let user_model = repository_user
         .get_model(&user.data().user_id)
         .await
-        .map_err(|e| other_error!(e))?;
+        .map_err(|e| other_error_page!(e))?;
 
     let one_time = if authorize.account.is_empty() && !authorize.new_account.is_empty() {
         let new_account_key = ModelKey::new(AUTH_ACCOUNT_STREAM, Uuid::new_v4());
@@ -152,7 +155,7 @@ pub async fn authorize_form(
                 None,
             )
             .await
-            .map_err(|e| other_error!(e))?;
+            .map_err(|e| other_error_page!(e))?;
 
         let _ = user_model
             .state()
@@ -161,7 +164,7 @@ pub async fn authorize_form(
                 account: new_account_key.clone(),
                 label: authorize.new_account.clone(),
             })
-            .map_err(|e| other_error!(e))?;
+            .map_err(|e| other_error_page!(e))?;
 
         dbg!(&model);
 
@@ -171,22 +174,22 @@ pub async fn authorize_form(
             .account
             .as_str()
             .try_into()
-            .map_err(|e: uuid::Error| other_error!(e))?;
+            .map_err(|e: uuid::Error| other_error_page!(e))?;
 
         if user_model.state().has_account(app_key, &account_id) {
             let model = repository_account
                 .add_command(&account_id, AccountCommand::NewOneTimeToken, None)
                 .await
-                .map_err(|e| other_error!(e))?;
+                .map_err(|e| other_error_page!(e))?;
 
             model.one_time_token(&account_id)
         } else {
-            todo!("error")
+            return Err(other_error_page!("account not found for current user"));
         }
     } else {
-        todo!("error")
+        return Err(other_error_page!("no account nor new account"));
     }
-    .map_err(|e| other_error!(e))?;
+    .map_err(|e| other_error_page!(e))?;
 
     Ok(Redirect::to(format!(
         "{}/auth?token={one_time}",
@@ -206,63 +209,68 @@ pub async fn single_use_token(
     repository_apps: &State<ApplicationRepository>,
     repository_user: &State<UserRepository>,
     repository_account: &State<AccountRepository>,
-) -> Result<String, ErrorPage> {
+) -> Result<String, ErrorApi> {
     dbg!(&data);
 
     let mut split = data.token.split('|');
-    let key = ModelKey::try_from(split.next().unwrap_or_default()).map_err(|e| other_error!(e))?;
+    let key =
+        ModelKey::try_from(split.next().unwrap_or_default()).map_err(|e| other_error_api!(e))?;
 
     let account = repository_account
         .get_model(&key)
         .await
-        .map_err(|e| other_error!(e))?;
+        .map_err(|e| other_error_api!(e))?;
 
     dbg!(&account.state());
 
     if account
         .state()
         .one_time_token(&key)
-        .map_err(|e| other_error!(e))?
+        .map_err(|e| other_error_api!(e))?
         != data.token
     {
-        todo!("wrong one time token")
+        return Err(other_error_api!("wrong one time password"));
     }
 
     let application = repository_apps
         .get_model(account.state().app_id())
         .await
-        .map_err(|e| other_error!(e))?;
+        .map_err(|e| other_error_api!(e))?;
     let application = application.state();
 
     dbg!(&application);
     dbg!(&data);
 
     if application.key() != data.app_key {
-        todo!("wrong app key")
+        return Err(other_error_api!("wrong application Key"));
     }
 
     let account = repository_account
         .add_command(&key, AccountCommand::Validate, None)
         .await
-        .map_err(|e| other_error!(e))?;
+        .map_err(|e| other_error_api!(e))?;
 
     dbg!(&account);
 
     let start = SystemTime::now();
     let since_the_epoch = start
         .duration_since(UNIX_EPOCH)
-        .map_err(|e| other_error!(e))?
+        .map_err(|e| other_error_api!(e))?
         .as_secs();
 
     let claims = Claims {
         aud: application
             .name()
             .parse()
-            .map_err(|e: Infallible| other_error!(e))?,
+            .map_err(|e: Infallible| other_error_api!(e))?,
         exp: (since_the_epoch + 3600) as usize,
         iat: since_the_epoch as usize,
-        iss: "login".parse().map_err(|e: Infallible| other_error!(e))?,
-        sub: "user".parse().map_err(|e: Infallible| other_error!(e))?,
+        iss: "login"
+            .parse()
+            .map_err(|e: Infallible| other_error_api!(e))?,
+        sub: "user"
+            .parse()
+            .map_err(|e: Infallible| other_error_api!(e))?,
         id: key.to_string(),
     };
 
@@ -271,7 +279,7 @@ pub async fn single_use_token(
         &claims,
         &EncodingKey::from_secret(application.key().as_ref()),
     )
-    .map_err(|e| other_error!(e))?;
+    .map_err(|e| other_error_api!(e))?;
 
     dbg!(&token);
 

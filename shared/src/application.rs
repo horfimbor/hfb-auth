@@ -47,7 +47,7 @@ pub struct ApplicationState {
     name: String,
     host: Url,
     key: String,
-    // TODO use 2 key : one to signe, and one for server2server call
+    // TODO ? use 2 key : one to signe, and one for server2server call
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

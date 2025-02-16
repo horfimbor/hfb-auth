@@ -5,7 +5,7 @@ mod registration;
 use crate::anyhow;
 use crate::session::get_session;
 use crate::web::error::ErrorPage;
-use crate::{other_error, user};
+use crate::{other_error_page, user};
 use hfb_auth_shared::AUTH_USER_STREAM;
 use horfimbor_eventsource::model_key::ModelKey;
 use jsonwebtoken::{encode, EncodingKey, Header};
@@ -32,7 +32,7 @@ pub fn get_routes() -> Vec<Route> {
 
 #[get("/")]
 async fn index(cookies: &CookieJar<'_>) -> Result<Redirect, ErrorPage> {
-    let session = get_session(cookies).map_err(|e| other_error!(e))?;
+    let session = get_session(cookies).map_err(|e| other_error_page!(e))?;
 
     Ok(match session.user() {
         None => Redirect::to(uri!(connexion::index())),

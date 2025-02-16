@@ -8,7 +8,7 @@
 {% endif %}
 <form action="/login" method="post">
     <div class="inputBox">
-        <input type="text" required name="email" /> <i>Identifier</i>
+        <input type="text" required name="identity" /> <i>Identifier</i>
     </div>
     <div class="inputBox">
         <input type="password" required name="password" /> <i>Password</i>

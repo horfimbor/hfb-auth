@@ -51,7 +51,9 @@ impl<'r> FromFormField<'r> for RedirectUrl {
     }
 
     async fn from_data(field: DataField<'r, '_>) -> rocket::form::Result<'r, Self> {
-        todo!()
+        Err(Errors::from(ErrorKind::Validation(
+            "redirect url is not in data fields but in value fields".into(),
+        )))
     }
 }
 
