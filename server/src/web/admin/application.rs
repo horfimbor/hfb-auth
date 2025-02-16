@@ -1,4 +1,5 @@
 use crate::constants::{APPLICATION_LIST_REDIS_KEY, AUTH_APPLICATION_UUID};
+use crate::session::{get_session, set_session, Csrf};
 use crate::user::Admin;
 use crate::web::error::ErrorPage;
 use crate::{anyhow_error_page, other_error_page, ApplicationRepository};
@@ -18,10 +19,13 @@ use rocket_dyn_templates::{context, Template};
 use url::{Host, Url};
 use uuid::{Error, Uuid};
 
+const APPLICATION_CSRF: &str = "APPLICATION_CSRF";
+
 #[derive(FromForm, Debug)]
 pub struct Application<'r> {
     name: &'r str,
     host: &'r str,
+    csrf: &'r str,
 }
 
 #[get("/admin/applications")]
@@ -52,17 +56,33 @@ pub async fn list(_admin: Admin, redis: &State<RedisClient>) -> Result<Template,
 }
 
 #[get("/admin/application/<id>")]
-pub async fn get(_admin: Admin, id: &str) -> Template {
-    Template::render("admin/application_update", context! {})
+pub async fn get(cookies: &CookieJar<'_>, _admin: Admin, id: &str) -> Result<Template, ErrorPage> {
+    let mut session = get_session(cookies).map_err(|e| anyhow_error_page!(e))?;
+    let csrf = Csrf::new(APPLICATION_CSRF);
+    session.set_csrf(Some(csrf.clone()));
+    set_session(cookies, session).map_err(|e| other_error_page!(e))?;
+
+    Ok(Template::render(
+        "admin/application_update",
+        context! {
+                csrf: csrf.value().to_string()
+        },
+    ))
 }
 
 #[post("/admin/update-application/<id>", data = "<application>")]
 pub async fn update(
+    cookies: &CookieJar<'_>,
     _admin: Admin,
     application: Form<Application<'_>>,
     repository: &State<ApplicationRepository>,
     id: &str,
 ) -> Result<Template, ErrorPage> {
+    let mut session = get_session(cookies).map_err(|e| anyhow_error_page!(e))?;
+    session
+        .check_csrf(APPLICATION_CSRF, application.csrf)
+        .map_err(|e| anyhow_error_page!(e))?;
+
     let uuid = match id.parse::<Uuid>() {
         Ok(u) => u,
         Err(e) => return Err(other_error_page!(e)),
@@ -74,16 +94,32 @@ pub async fn update(
 }
 
 #[get("/admin/new-application")]
-pub async fn get_create(_admin: Admin) -> Template {
-    Template::render("admin/application_create", context! {})
+pub async fn get_create(cookies: &CookieJar<'_>, _admin: Admin) -> Result<Template, ErrorPage> {
+    let mut session = get_session(cookies).map_err(|e| anyhow_error_page!(e))?;
+    let csrf = Csrf::new(APPLICATION_CSRF);
+    session.set_csrf(Some(csrf.clone()));
+    set_session(cookies, session);
+
+    Ok(Template::render(
+        "admin/application_create",
+        context! {
+            csrf: csrf.value().to_string()
+        },
+    ))
 }
 
 #[post("/admin/new-application", data = "<application>")]
 pub async fn post_create(
+    cookies: &CookieJar<'_>,
     _admin: Admin,
     application: Form<Application<'_>>,
     repository: &State<ApplicationRepository>,
 ) -> Result<Template, ErrorPage> {
+    let mut session = get_session(cookies).map_err(|e| anyhow_error_page!(e))?;
+    session
+        .check_csrf(APPLICATION_CSRF, application.csrf)
+        .map_err(|e| anyhow_error_page!(e))?;
+
     let key = ModelKey::new_uuid_v8(
         AUTH_APPLICATION_STREAM,
         AUTH_APPLICATION_UUID,

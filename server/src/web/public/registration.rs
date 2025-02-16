@@ -1,4 +1,5 @@
 use crate::constants::AUTH_USER_UUID;
+use crate::session::{get_session, set_session, Csrf};
 use crate::web::error::ErrorPage;
 use crate::web::public;
 use crate::web::public::helper;
@@ -16,9 +17,23 @@ use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::{context, Template};
 
+const REGISTER_CSRF: &str = "REGISTER_CSRF";
+
 #[get("/register")]
-pub async fn register(cookies: &CookieJar<'_>) -> Template {
-    Template::render("register", context! {})
+pub async fn register(cookies: &CookieJar<'_>) -> Result<Template, ErrorPage> {
+    let mut session = get_session(cookies).map_err(|e| anyhow_error_page!(e))?;
+
+    let csrf = Csrf::new(REGISTER_CSRF);
+    session.set_csrf(Some(csrf.clone()));
+
+    set_session(cookies, session).map_err(|e| other_error_page!(e))?;
+
+    Ok(Template::render(
+        "register",
+        context! {
+                csrf: csrf.value().to_string()
+        },
+    ))
 }
 
 #[derive(FromForm, Debug)]
@@ -27,6 +42,7 @@ pub struct Register<'r> {
     pseudo: &'r str,
     password: &'r str,
     password_check: &'r str,
+    csrf: &'r str,
 }
 
 #[post("/register", data = "<register>")]
@@ -35,6 +51,12 @@ pub async fn register_form(
     register: Form<Register<'_>>,
     cookies: &CookieJar<'_>,
 ) -> Result<Redirect, ErrorPage> {
+    let mut session = get_session(cookies).map_err(|e| anyhow_error_page!(e))?;
+
+    session
+        .check_csrf(REGISTER_CSRF, register.csrf)
+        .map_err(|e| anyhow_error_page!(e))?;
+
     let key = ModelKey::new_uuid_v8(AUTH_USER_STREAM, AUTH_USER_UUID, register.identity);
 
     if register.password != register.password_check {

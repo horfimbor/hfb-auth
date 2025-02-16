@@ -16,6 +16,7 @@ eventstore = "4.0.0"
 redis = { version = "0.29", features = ["tokio-rustls-comp"] }
 uuid = { version = "1.8", features = ["v4", "v5"] }
 chrono = { version = "0.4", features = ["serde"] }
+rand = "0.9"
 
 # TODO move out
 public-user-event = { path = "public-user-event", features = ["server"] }

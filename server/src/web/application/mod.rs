@@ -1,5 +1,5 @@
 use crate::constants::AUTH_APPLICATION_UUID;
-use crate::session::{base_host, get_session, set_session};
+use crate::session::{base_host, get_session, set_session, Csrf};
 use crate::url_parsing::RedirectUrl;
 use crate::user::User;
 use crate::web::error::{ErrorApi, ErrorPage};
@@ -29,6 +29,8 @@ use std::convert::Infallible;
 use std::time::{SystemTime, UNIX_EPOCH};
 use url::Url;
 use uuid::Uuid;
+
+const AUTHORIZE_CSRF: &str = "AUTHORIZE_CSRF";
 
 pub fn get_authorization_routes() -> Vec<Route> {
     routes![authorize, authorize_guest, authorize_form, single_use_token,]
@@ -68,6 +70,8 @@ pub async fn authorize(
     let mut session = get_session(cookies).map_err(|e| other_error_page!(e))?;
     session.set_redirect_url(redirect);
     session.set_application(Some(application_id.clone()));
+    let csrf = Csrf::new(AUTHORIZE_CSRF);
+    session.set_csrf(Some(csrf.clone()));
     set_session(cookies, session);
 
     let user = repository_user
@@ -89,6 +93,7 @@ pub async fn authorize(
         context! {
             application_name: application.state().name(),
             accounts: accounts,
+            csrf: csrf.value(),
         },
     ))
 }
@@ -110,15 +115,16 @@ pub async fn authorize_guest(
 }
 
 #[derive(FromForm, Debug)]
-pub struct Authorize {
-    account: String,
-    new_account: String,
+pub struct Authorize<'r> {
+    account: &'r str,
+    new_account: &'r str,
+    csrf: &'r str,
 }
 
 #[post("/auth/authorize", data = "<authorize>")]
 pub async fn authorize_form(
     cookies: &CookieJar<'_>,
-    authorize: Form<Authorize>,
+    authorize: Form<Authorize<'_>>,
     repository_apps: &State<ApplicationRepository>,
     repository_user: &State<UserRepository>,
     repository_account: &State<AccountRepository>,
@@ -126,7 +132,11 @@ pub async fn authorize_form(
 ) -> Result<Redirect, ErrorPage> {
     dbg!(&authorize);
 
-    let mut session = get_session(cookies).map_err(|e| other_error_page!(e))?;
+    let mut session = get_session(cookies).map_err(|e| anyhow_error_page!(e))?;
+    session
+        .check_csrf(AUTHORIZE_CSRF, authorize.csrf)
+        .map_err(|e| anyhow_error_page!(e))?;
+
     let Some(app_key) = session.application() else {
         return Err(other_error_page!("application not found"));
     };
@@ -150,7 +160,7 @@ pub async fn authorize_form(
                 AccountCommand::Create {
                     user_id: user.data().user_id.clone(),
                     app_id: app_key.clone(),
-                    name: authorize.new_account.clone(),
+                    name: authorize.new_account.to_string(),
                 },
                 None,
             )
@@ -162,7 +172,7 @@ pub async fn authorize_form(
             .try_command(UserCommand::AddAccount {
                 application: app_key.clone(),
                 account: new_account_key.clone(),
-                label: authorize.new_account.clone(),
+                label: authorize.new_account.to_string(),
             })
             .map_err(|e| other_error_page!(e))?;
 
@@ -172,7 +182,6 @@ pub async fn authorize_form(
     } else if !authorize.account.is_empty() {
         let account_id: ModelKey = authorize
             .account
-            .as_str()
             .try_into()
             .map_err(|e: uuid::Error| other_error_page!(e))?;
 

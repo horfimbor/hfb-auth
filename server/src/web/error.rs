@@ -107,11 +107,13 @@ async fn error() -> Result<(), ErrorPage> {
 
 #[get("/error_anyhow")]
 async fn error_anyhow() -> Result<(), ErrorPage> {
-    some_error_func().context("wrong in some error func").map_err(|e| anyhow_error_page!(e))?;
+    some_error_func()
+        .context("wrong in some error func")
+        .map_err(|e| anyhow_error_page!(e))?;
     let e = anyhow!("So you want an error 🤔");
     Err(anyhow_error_page!(e))
 }
 
-fn some_error_func() -> anyhow::Result<()>{
+fn some_error_func() -> anyhow::Result<()> {
     bail!("something wrong")
 }

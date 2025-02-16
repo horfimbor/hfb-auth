@@ -1172,6 +1172,7 @@ dependencies = [
  "horfimbor-eventsource",
  "jsonwebtoken",
  "public-account-event",
+ "rand 0.9.0",
  "redis",
  "rocket",
  "rocket_cors",

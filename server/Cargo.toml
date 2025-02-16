@@ -26,6 +26,7 @@ public-account-event = {workspace = true }
 signal-hook-tokio = { version = "0.3", features = ["futures-v0_3"] }
 signal-hook = "0.3"
 chrono = { workspace = true }
+rand = { workspace = true }
 
 [dependencies.rocket_dyn_templates]
 version = "0.2"

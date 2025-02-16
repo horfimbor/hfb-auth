@@ -1,9 +1,9 @@
 use crate::constants::AUTH_USER_UUID;
-use crate::session::{get_session, remove_session, set_session, LoggedInUser};
+use crate::session::{get_session, remove_session, set_session, Csrf, LoggedInUser};
 use crate::url_parsing::RedirectUrl;
 use crate::web::error::ErrorPage;
 use crate::web::{admin, application, public};
-use crate::{other_error_page, user, UserRepository};
+use crate::{anyhow_error_page, other_error_page, user, UserRepository};
 use anyhow::anyhow;
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
 use hfb_auth_shared::user::{UserCommand, UserState};
@@ -17,27 +17,30 @@ use rocket::State;
 use rocket_dyn_templates::{context, Template};
 use url::Url;
 
+const LOGIN_CSRF: &str = "LOGIN_CSRF";
+
 #[get("/login")]
 pub async fn index(cookies: &CookieJar<'_>) -> Result<Template, ErrorPage> {
-    let mut session = get_session(cookies).map_err(|e| other_error_page!(e))?;
+    let mut session = get_session(cookies).map_err(|e| anyhow_error_page!(e))?;
 
-    Ok(render_login(None, None))
-}
+    let csrf = Csrf::new(LOGIN_CSRF);
+    session.set_csrf(Some(csrf.clone()));
 
-fn render_login(redirect: Option<Url>, error: Option<&str>) -> Template {
-    // todo generate csrf
-    Template::render(
+    set_session(cookies, session).map_err(|e| other_error_page!(e))?;
+
+    Ok(Template::render(
         "login",
         context! {
-            error: error
+            csrf: csrf.value().to_string()
         },
-    )
+    ))
 }
 
 #[derive(FromForm, Debug)]
 pub struct Login<'r> {
     identity: &'r str,
     password: &'r str,
+    csrf: &'r str,
 }
 
 #[post("/login", data = "<login>")]
@@ -46,6 +49,12 @@ pub async fn login(
     auth_user_repository: &State<UserRepository>,
     cookies: &CookieJar<'_>,
 ) -> Result<Redirect, ErrorPage> {
+    let mut session = get_session(cookies).map_err(|e| anyhow_error_page!(e))?;
+
+    session
+        .check_csrf(LOGIN_CSRF, login.csrf)
+        .map_err(|e| anyhow_error_page!(e))?;
+
     let key = ModelKey::new_uuid_v8(AUTH_USER_STREAM, AUTH_USER_UUID, login.identity);
 
     let model = auth_user_repository
@@ -74,7 +83,6 @@ pub async fn login(
         .await
         .map_err(|e| other_error_page!(e))?;
 
-    let mut session = get_session(cookies).map_err(|e| other_error_page!(e))?;
     session.set_user(Some(LoggedInUser {
         user_id: key,
         pseudo: user.pseudo().to_string(),
