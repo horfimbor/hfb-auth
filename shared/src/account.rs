@@ -77,8 +77,8 @@ impl AccountState {
     fn play_private_event(&mut self, event: &PrvAccountEvent) {
         match event {
             PrvAccountEvent::Created {
-                app_id,
                 user_id,
+                app_id,
                 name,
             } => {
                 self.app_id = app_id.clone();
@@ -121,6 +121,10 @@ impl AccountState {
 
     pub fn app_id(&self) -> &ModelKey {
         &self.app_id
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 }
 

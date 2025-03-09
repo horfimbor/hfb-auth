@@ -25,7 +25,9 @@ use hfb_auth_shared::AUTH_USER_STREAM;
 use horfimbor_eventsource::cache_db::redis::StateDb;
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::{Repository, StateRepository};
+use jsonwebtoken::{DecodingKey, EncodingKey};
 use redis::{Client as RedisClient, Commands};
+use ring::signature::{Ed25519KeyPair, KeyPair};
 use rocket::tokio::spawn;
 use signal_hook::consts::signal::*;
 use signal_hook_tokio::Signals;
@@ -54,7 +56,7 @@ struct Args {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    Cli {
+    UserUpdate {
         #[arg(short, long)]
         user: Uuid,
 
@@ -112,7 +114,7 @@ async fn main() -> Result<()> {
     );
 
     match args.command {
-        Command::Cli {
+        Command::UserUpdate {
             user,
             password,
             role,

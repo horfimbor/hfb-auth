@@ -5,7 +5,7 @@
 <h2>Sign up</h2>
 <form action="/register" method="post">
     <div class="inputBox">
-        <input type="text" required name="identity"  minlength="10" maxlength="50"  /> <i>Identifier</i>
+        <input type="text" required name="identity"  minlength="4" maxlength="25"  /> <i>Identifier</i>
     </div>
     <div class="inputBox">
         <input type="text" required name="pseudo"  minlength="3" maxlength="20"  /> <i>Pseudonym</i>
