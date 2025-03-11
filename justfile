@@ -4,7 +4,6 @@ set dotenv-load
 alias dc-up := dc-start
 dc-start:
     docker compose up -d
-    firefox $APP_HOST
 
 alias dc-down := dc-stop
 dc-stop:
@@ -14,7 +13,7 @@ dc-reset:
     docker compose down -v
     just dc-start
 
-
+alias ff := open
 open:
     firefox $APP_HOST
 

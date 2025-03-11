@@ -1262,6 +1262,8 @@ dependencies = [
 [[package]]
 name = "horfimbor-jwt"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f81b1cc5fef1187c890de89d833c437b61ab6632f8c7669a0efa1206fbc6d640"
 dependencies = [
  "horfimbor-eventsource",
  "jsonwebtoken",
