@@ -16,6 +16,8 @@ use hfb_auth_shared::{AUTH_ACCOUNT_STREAM, AUTH_APPLICATION_STREAM};
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::Repository;
 use horfimbor_eventsource::State as HorfimborState;
+use horfimbor_jwt::builder::ClaimBuilder;
+use horfimbor_jwt::Role;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use rocket::form::Form;
 use rocket::http::hyper::body::HttpBody;
@@ -26,6 +28,7 @@ use rocket::serde::{Deserialize, Serialize};
 use rocket::{Route, State};
 use rocket_dyn_templates::{context, Template};
 use std::convert::Infallible;
+use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 use url::Url;
 use uuid::Uuid;
@@ -261,35 +264,27 @@ pub async fn single_use_token(
 
     dbg!(&account);
 
-    let start = SystemTime::now();
-    let since_the_epoch = start
-        .duration_since(UNIX_EPOCH)
-        .map_err(|e| other_error_api!(e))?
-        .as_secs();
+    let host = base_host().map_err(|e| other_error_api!(e))?;
 
-    let claims = Claims {
-        aud: application
-            .name()
-            .parse()
-            .map_err(|e: Infallible| other_error_api!(e))?,
-        exp: (since_the_epoch + 3600) as usize,
-        iat: since_the_epoch as usize,
-        iss: "login"
-            .parse()
-            .map_err(|e: Infallible| other_error_api!(e))?,
-        sub: "user"
-            .parse()
-            .map_err(|e: Infallible| other_error_api!(e))?,
-        id: key.to_string(),
-    };
+    dbg!(&account.app_id().to_string());
+    dbg!(&host);
 
-    let token = encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(application.key().as_ref()),
-    )
-    .map_err(|e| other_error_api!(e))?;
+    let mut cb = ClaimBuilder::new(3600, account.app_id().to_string(), host);
 
+    cb.set_account(
+        account.user_id().clone(),
+        key,
+        account.name().to_string(),
+        Role::User,
+    );
+
+    let cookie_secret_key = env::var("JWT_SECRET_KEY")
+        .context("JWT_SECRET_KEY must be provided")
+        .map_err(|e| other_error_api!(e))?;
+
+    let token = cb
+        .build(&cookie_secret_key)
+        .map_err(|e| other_error_api!(e))?;
     dbg!(&token);
 
     Ok(token)
@@ -301,7 +296,6 @@ struct Claims {
     exp: usize, // Required (validate_exp defaults to true in validation). Expiration time (as UTC timestamp)
     iat: usize, // Optional. Issued at (as UTC timestamp)
     iss: String, // Optional. Issuer
-    // nbf: usize,          // Optional. Not Before (as UTC timestamp)
     sub: String, // Optional. Subject (whom token refers to)
     id: String,
 }

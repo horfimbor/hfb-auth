@@ -1,10 +1,11 @@
 set shell := ["bash", "-uc"]
 set dotenv-load
 
+alias dc-up := dc-start
 dc-start:
     docker compose up -d
-    firefox $APP_HOST
 
+alias dc-down := dc-stop
 dc-stop:
     docker compose down
 
@@ -12,6 +13,9 @@ dc-reset:
     docker compose down -v
     just dc-start
 
+alias ff := open
+open:
+    firefox $APP_HOST
 
 watch:
     export $(grep -v '^#' .env | xargs) && \
@@ -19,10 +23,10 @@ watch:
             -x "run -p hfb-auth-server service"
 
 add-admin uuid:
-    cargo run -p hfb-auth-server -- cli --user {{uuid}} --role Admin
+    cargo run -p hfb-auth-server -- user-update --user {{uuid}} --role Admin
 
-reset-password uuid:
-    cargo run -p hfb-auth-server -- cli --user {{uuid}} --password empty
+reset-password uuid new_password:
+    cargo run -p hfb-auth-server -- user-update --user {{uuid}} --password {{new_password}}
 
 precommit:
     cargo fmt

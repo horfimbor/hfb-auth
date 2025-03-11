@@ -36,7 +36,7 @@ pub enum UserCommand {
     ChangePassword {
         password_hash: String,
     },
-    Login, // TODO logic must be in command not in controller ?
+    Login,
     ChangeRole(Option<UserRole>),
     AddAccount {
         application: ApplicationId,

@@ -74,9 +74,12 @@ pub async fn login(
 
     let parsed_hash = PasswordHash::new(password_hash).map_err(|e| other_error_page!(e))?;
 
-    assert!(Argon2::default()
+    if Argon2::default()
         .verify_password(login.password.as_ref(), &parsed_hash)
-        .is_ok());
+        .is_err()
+    {
+        return Err(other_error_page!("Login failed"));
+    }
 
     let user = auth_user_repository
         .add_command(&key, UserCommand::Login, None)
