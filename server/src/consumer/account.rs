@@ -1,7 +1,6 @@
 use crate::constants::APPLICATION_LIST_REDIS_KEY;
 use crate::UserRepository;
 use anyhow::{Context, Result};
-use eventstore::Client as EventstoreClient;
 use hfb_auth_shared::account::AccountEvent;
 use hfb_auth_shared::application::{ApplicationEvent, ApplicationList, PrivateApplicationEvent};
 use hfb_auth_shared::user::{UserCommand, UserState};
@@ -10,6 +9,7 @@ use horfimbor_eventsource::helper::{create_subscription, get_persistent_subscrip
 use horfimbor_eventsource::metadata::Metadata;
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::{EventSourceStateError, Stream};
+use kurrentdb::Client as EventstoreClient;
 use public_account_event::PubAccountEvent;
 use redis::{Client as RedisClient, Commands};
 use rocket::tokio::time::MissedTickBehavior::Delay;
@@ -46,7 +46,7 @@ pub async fn listen_accounts(
             .context("cannot deserialize")?;
 
         if !metadata.is_event() {
-            sub.ack(rcv_event)
+            sub.ack(&rcv_event)
                 .await
                 .context("cannot acknowledge event")?;
 
@@ -65,7 +65,7 @@ pub async fn listen_accounts(
                     user_id,
                     name,
                 } => {
-                    let account = ModelKey::try_from(full_event.stream_id.as_str())?;
+                    let account = ModelKey::try_from(full_event.stream_id())?;
 
                     match user_repository
                         .add_command(
@@ -91,7 +91,7 @@ pub async fn listen_accounts(
             },
         }
 
-        sub.ack(rcv_event)
+        sub.ack(&rcv_event)
             .await
             .context("cannot acknowledge event")?;
     }

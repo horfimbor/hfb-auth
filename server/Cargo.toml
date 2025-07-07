@@ -9,7 +9,7 @@ edition = "2021"
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 dotenvy = "0.15"
-eventstore.workspace = true
+kurrentdb.workspace = true
 jsonwebtoken = "9.3"
 redis.workspace = true
 rocket = { version = "0.5", features = ["secrets"] }

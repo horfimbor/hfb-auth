@@ -15,7 +15,6 @@ use crate::consumer::account::listen_accounts;
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use consumer::application;
-use eventstore::Client as EventstoreClient;
 use futures::future::try_join_all;
 use futures::{FutureExt, StreamExt};
 use hfb_auth_shared::account::AccountState;
@@ -26,6 +25,7 @@ use horfimbor_eventsource::cache_db::redis::StateDb;
 use horfimbor_eventsource::model_key::ModelKey;
 use horfimbor_eventsource::repository::{Repository, StateRepository};
 use jsonwebtoken::{DecodingKey, EncodingKey};
+use kurrentdb::Client as EventstoreClient;
 use redis::{Client as RedisClient, Commands};
 use ring::signature::{Ed25519KeyPair, KeyPair};
 use rocket::tokio::spawn;
@@ -97,8 +97,8 @@ async fn main() -> Result<()> {
     let redis_client =
         RedisClient::open(env::var("REDIS_URI").context("fail to get REDIS_URI env var")?)?;
 
-    let event_store_db =
-        EventstoreClient::new(eventstore_uri).context("fail to connect to eventstore db")?;
+    let event_store_db = EventstoreClient::new(eventstore_uri)
+        .map_err(|e| anyhow!(" cannot connect to eventstore : {e}"))?;
 
     let auth_user_repository = UserRepository::new(
         event_store_db.clone(),

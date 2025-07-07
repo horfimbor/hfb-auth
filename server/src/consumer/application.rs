@@ -1,11 +1,11 @@
 use crate::constants::APPLICATION_LIST_REDIS_KEY;
 use anyhow::{Context, Result};
-use eventstore::Client as EventstoreClient;
 use hfb_auth_shared::application::{ApplicationEvent, ApplicationList, PrivateApplicationEvent};
 use hfb_auth_shared::AUTH_APPLICATION_STREAM;
 use horfimbor_eventsource::helper::{create_subscription, get_persistent_subscription};
 use horfimbor_eventsource::metadata::Metadata;
 use horfimbor_eventsource::Stream;
+use kurrentdb::Client as EventstoreClient;
 use redis::{Client as RedisClient, Commands};
 use serde_json::json;
 
@@ -48,7 +48,7 @@ pub async fn listen_applications(event_db: &EventstoreClient, redis: &RedisClien
             .context("cannot deserialize")?;
 
         if !metadata.is_event() {
-            sub.ack(rcv_event)
+            sub.ack(&rcv_event)
                 .await
                 .context("cannot acknowledge event")?;
 
@@ -78,7 +78,7 @@ pub async fn listen_applications(event_db: &EventstoreClient, redis: &RedisClien
             },
         }
 
-        sub.ack(rcv_event)
+        sub.ack(&rcv_event)
             .await
             .context("cannot acknowledge event")?;
     }
