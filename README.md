@@ -1,35 +1,32 @@
 # hfb-auth
 authentication for the horfimbor game
 
+## why not a simple Oauth 2 server ?
+
+The main difference is that it allow to create multiple account on the distants services.
+
 ## development
 
 ### before first launch :
 
-install Rust
+install Rust and then cargo watch :
 
 ```bash
 cargo install cargo-watch
-cargo install sqlx-cli --no-default-features --features rustls,mysql
 ```
 
-### other launch : 
+to run the commande in [justfile](./justfile) install [just](https://github.com/casey/just)
+
+### start server for development : 
+
+start the DB in docker compose :
 
 ```bash
-just start
-just watch-server
-```
-###
-
-build and push image to minikube : 
-
-```shell
-cargo sqlx prepare
-eval $(minikube docker-env)
-timestamp=$(date +%s)
-docker build -t hfb-auth:${timestamp} .
+just dc-start
 ```
 
-### tools documentation : 
+start the server in watcher mode :
 
-[sqlx-cli](https://github.com/launchbadge/sqlx/blob/main/sqlx-cli/README.md)
-
+```bash
+just watch
+```
