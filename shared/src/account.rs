@@ -32,6 +32,9 @@ pub enum AccountError {
     #[error("Account was already suspended")]
     AlreadySuspended,
 
+    #[error("Account was already created")]
+    AlreadyCreated,
+
     #[error("Account was not suspended")]
     NotSuspended,
 
@@ -57,6 +60,7 @@ pub enum PrvAccountEvent {
 #[derive(Event)]
 #[composite_state]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
 pub enum AccountEvent {
     Private(PrvAccountEvent),
     Public(PubAccountEvent),
@@ -71,6 +75,7 @@ pub struct AccountState {
     name: String,
     suspended: bool,
     one_time_token: Option<String>,
+    validated: bool,
 }
 
 impl AccountState {
@@ -102,7 +107,7 @@ impl AccountState {
 
     fn play_public_event(&mut self, event: &PubAccountEvent) {
         match event {
-            PubAccountEvent::AccountCreated { .. } => {}
+            PubAccountEvent::AccountCreated { .. } => self.validated = true,
             PubAccountEvent::AccountSuspended => self.suspended = true,
             PubAccountEvent::AccountResumed => self.suspended = false,
         }
@@ -150,7 +155,10 @@ impl State for AccountState {
                 app_id,
                 user_id,
             } => {
-                // TODO check previously exist ?!
+                if self.app_id != ModelKey::default() {
+                    return Err(AccountError::AlreadyCreated);
+                }
+
                 Ok(vec![
                     AccountEvent::Private(PrvAccountEvent::Created {
                         user_id: user_id.clone(),
@@ -163,16 +171,20 @@ impl State for AccountState {
                 ])
             }
             AccountCommand::Validate => {
-                // TODO send account created only once
-                Ok(vec![
-                    AccountEvent::Public(PubAccountEvent::AccountCreated {
+                let mut events = vec![
+                    AccountEvent::Public(PubAccountEvent::AccountResumed),
+                    AccountEvent::Private(PrvAccountEvent::OneTimeTokenRemoved),
+                ];
+
+                if !self.validated {
+                    events.push(AccountEvent::Public(PubAccountEvent::AccountCreated {
                         user_id: self.user_id.clone(),
                         app_id: self.app_id.clone(),
                         name: self.name.clone(),
-                    }),
-                    AccountEvent::Public(PubAccountEvent::AccountResumed),
-                    AccountEvent::Private(PrvAccountEvent::OneTimeTokenRemoved),
-                ])
+                    }))
+                }
+
+                Ok(events)
             }
             AccountCommand::Suspend => {
                 if self.suspended {
