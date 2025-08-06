@@ -18,12 +18,8 @@ open:
     firefox $APP_HOST
 
 alias watch-server := watch
-watch:
+watch: dc-start
     export $(grep -v '^#' .env | xargs) && bacon run-long
-
-#    export $(grep -v '^#' .env | xargs) && \
-#            cargo watch -w server -w shared  \
-#            -x "run -p hfb-auth-server service"
 
 add-admin uuid:
     cargo run -p hfb-auth-server -- user-update --user {{uuid}} --role Admin

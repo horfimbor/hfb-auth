@@ -278,13 +278,14 @@ pub async fn single_use_token(
         Role::User,
     );
 
-    let cookie_secret_key = env::var("JWT_SECRET_KEY")
+    let jwt_secret_key = env::var("JWT_SECRET_KEY")
         .context("JWT_SECRET_KEY must be provided")
         .map_err(|e| other_error_api!(e))?;
 
     let token = cb
-        .build(&cookie_secret_key)
+        .build(&jwt_secret_key)
         .map_err(|e| other_error_api!(e))?;
+
     dbg!(&token);
 
     Ok(token)
