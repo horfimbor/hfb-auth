@@ -282,9 +282,7 @@ pub async fn single_use_token(
         .context("JWT_SECRET_KEY must be provided")
         .map_err(|e| other_error_api!(e))?;
 
-    let token = cb
-        .build(&jwt_secret_key)
-        .map_err(|e| other_error_api!(e))?;
+    let token = cb.build(&jwt_secret_key).map_err(|e| other_error_api!(e))?;
 
     dbg!(&token);
 

@@ -9,6 +9,8 @@
 {% endif %}
 <form action="/admin/new-application" method="post">
     Update Application #TODO
+    <div>App_id: {{app_id}}</div>
+    <div>App_key: {{app_key}}</div>
     <div class="inputBox">
         <input type="text" required name="name" minlength="3" maxlength="20"/> <i>Name</i>
     </div>

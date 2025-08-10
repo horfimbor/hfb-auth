@@ -63,7 +63,7 @@ pub async fn listen_applications(event_db: &EventstoreClient, redis: &RedisClien
             ApplicationEvent::Private(prv) => match prv {
                 PrivateApplicationEvent::Created { name, host, key } => {
                     application_list.push(ApplicationList {
-                        id: full_event.id.to_string(),
+                        id: full_event.stream_id().to_string(),
                         name,
                         host,
                     });

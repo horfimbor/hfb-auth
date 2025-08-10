@@ -9,6 +9,7 @@ use hfb_auth_shared::application::{ApplicationCommand, ApplicationList, PrivateA
 use hfb_auth_shared::AUTH_APPLICATION_STREAM;
 use horfimbor_eventsource::helper::{create_subscription, get_subscription};
 use horfimbor_eventsource::model_key::ModelKey;
+use horfimbor_eventsource::repository::Repository;
 use horfimbor_eventsource::{Event, Stream};
 use kurrentdb::Client;
 use redis::{Client as RedisClient, Commands};
@@ -47,6 +48,8 @@ pub async fn list(_admin: Admin, redis: &State<RedisClient>) -> Result<Template,
             .map_err(|a| anyhow_error_page!(a))?,
     };
 
+    dbg!(&application_list);
+
     Ok(Template::render(
         "admin/applications",
         context! {
@@ -56,16 +59,32 @@ pub async fn list(_admin: Admin, redis: &State<RedisClient>) -> Result<Template,
 }
 
 #[get("/admin/application/<id>")]
-pub async fn get(cookies: &CookieJar<'_>, _admin: Admin, id: &str) -> Result<Template, ErrorPage> {
+pub async fn get(
+    cookies: &CookieJar<'_>,
+    _admin: Admin,
+    id: &str,
+    repository: &State<ApplicationRepository>,
+) -> Result<Template, ErrorPage> {
     let mut session = get_session(cookies).map_err(|e| anyhow_error_page!(e))?;
     let csrf = Csrf::new(APPLICATION_CSRF);
     session.set_csrf(Some(csrf.clone()));
     set_session(cookies, session).map_err(|e| other_error_page!(e))?;
 
+    let model_key: ModelKey = id
+        .try_into()
+        .map_err(|_| other_error_page!("cannot parse id"))?;
+
+    let model = repository
+        .get_model(&model_key)
+        .await
+        .map_err(|e| other_error_page!(e))?;
+
     Ok(Template::render(
         "admin/application_update",
         context! {
-                csrf: csrf.value().to_string()
+                csrf: csrf.value().to_string(),
+                app_id: id,
+            app_key: model.state().key()
         },
     ))
 }

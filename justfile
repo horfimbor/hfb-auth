@@ -1,23 +1,23 @@
 set shell := ["bash", "-uc"]
 set dotenv-load
 
-alias dc-start := dc-up
-dc-up:
-    docker compose up -d
+alias dc-up := dc-start
+dc-start:
+    docker compose up -d --build --force-recreate {{SRV}}
+    docker compose logs --follow {{SRV}}
 
-alias dc-stop := dc-down
-dc-down:
+alias dc-down := dc-stop
+dc-stop:
     docker compose down --remove-orphans
 
 dc-reset:
-    docker compose down --remove-orphans -v
-    just dc-up
+    just dc-down
+    just dc-start
 
 alias ff := open
 open:
     firefox $APP_HOST
 
-alias watch-server := watch
 watch: dc-start
     export $(grep -v '^#' .env | xargs) && bacon run-long
 
