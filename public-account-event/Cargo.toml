@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-horfimbor-eventsource = { workspace = true, optional = true }
+horfimbor-eventsource = { workspace = true }
 serde.workspace = true
 
 [features]
-server = ["horfimbor-eventsource"]
+server = []
 
 [lints]
 workspace = true
