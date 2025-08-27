@@ -51,15 +51,12 @@ pub async fn authorize(
         .url()
         .context("cannot get redirect url from url")
         .map_err(|e| other_error_page!(e))?;
-    dbg!(&redirect);
 
     let application_id = ModelKey::new_uuid_v8(
         AUTH_APPLICATION_STREAM,
         AUTH_APPLICATION_UUID,
         redirect.as_ref(),
     );
-
-    dbg!(&application_id);
 
     let application = application_repository
         .get_model(&application_id)
@@ -81,8 +78,6 @@ pub async fn authorize(
         .get_model(&user.data().user_id)
         .await
         .map_err(|e| other_error_page!(e))?;
-
-    dbg!(user.state().accounts(&application_id));
 
     let accounts: Vec<(String, String)> = user
         .state()
@@ -111,7 +106,6 @@ pub async fn authorize_guest(
     let redirect = format!("{}{}", base_host().map_err(|e| other_error_page!(e))?, uri);
     let url = Url::parse(&redirect).map_err(|e| other_error_page!(e))?;
     session.set_redirect_url(url);
-    dbg!(&session.redirect_url().to_string());
     set_session(cookies, session);
 
     Ok(Redirect::to(uri!("/login")))
@@ -133,8 +127,6 @@ pub async fn authorize_form(
     repository_account: &State<AccountRepository>,
     user: User,
 ) -> Result<Redirect, ErrorPage> {
-    dbg!(&authorize);
-
     let mut session = get_session(cookies).map_err(|e| anyhow_error_page!(e))?;
     session
         .check_csrf(AUTHORIZE_CSRF, authorize.csrf)
@@ -179,8 +171,6 @@ pub async fn authorize_form(
             })
             .map_err(|e| other_error_page!(e))?;
 
-        dbg!(&model);
-
         model.one_time_token(&new_account_key)
     } else if !authorize.account.is_empty() {
         let account_id: ModelKey = authorize
@@ -222,8 +212,6 @@ pub async fn single_use_token(
     repository_user: &State<UserRepository>,
     repository_account: &State<AccountRepository>,
 ) -> Result<String, ErrorApi> {
-    dbg!(&data);
-
     let mut split = data.token.split('|');
     let key =
         ModelKey::try_from(split.next().unwrap_or_default()).map_err(|e| other_error_api!(e))?;
@@ -232,8 +220,6 @@ pub async fn single_use_token(
         .get_model(&key)
         .await
         .map_err(|e| other_error_api!(e))?;
-
-    dbg!(&account.state());
 
     if account
         .state()
@@ -250,9 +236,6 @@ pub async fn single_use_token(
         .map_err(|e| other_error_api!(e))?;
     let application = application.state();
 
-    dbg!(&application);
-    dbg!(&data);
-
     if application.key() != data.app_key {
         return Err(other_error_api!("wrong application Key"));
     }
@@ -262,20 +245,28 @@ pub async fn single_use_token(
         .await
         .map_err(|e| other_error_api!(e))?;
 
-    dbg!(&account);
-
     let host = base_host().map_err(|e| other_error_api!(e))?;
 
-    dbg!(&account.app_id().to_string());
-    dbg!(&host);
+    let user = repository_user
+        .get_model(account.user_id())
+        .await
+        .map_err(|e| other_error_api!(e))?;
+
+    let user = user.state();
 
     let mut cb = ClaimBuilder::new(3600, account.app_id().to_string(), host);
+
+    let role = if user.is_admin() {
+        Role::Admin
+    } else {
+        Role::User
+    };
 
     cb.set_account(
         account.user_id().clone(),
         key,
         account.name().to_string(),
-        Role::User,
+        role,
     );
 
     let jwt_secret_key = env::var("JWT_SECRET_KEY")
@@ -283,8 +274,6 @@ pub async fn single_use_token(
         .map_err(|e| other_error_api!(e))?;
 
     let token = cb.build(&jwt_secret_key).map_err(|e| other_error_api!(e))?;
-
-    dbg!(&token);
 
     Ok(token)
 }
