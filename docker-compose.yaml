@@ -14,7 +14,7 @@ services:
       - ".env"
       - ".env.docker"
     depends_on:
-      eventstore:
+      kurrentdb:
         condition: service_healthy
         restart: true
       redis:
