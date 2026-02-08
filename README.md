@@ -9,20 +9,20 @@ The main difference is that it allow to create multiple account on the distants 
 
 ### before first launch :
 
-install Rust and then cargo watch :
+install [Rust](https://rust-lang.org/) with [rustup](https://rustup.rs/) and then [bacon](https://dystroy.org/bacon/) :
 
 ```bash
-cargo install cargo-watch
+cargo install bacon
 ```
 
-to run the commande in [justfile](./justfile) install [just](https://github.com/casey/just)
+to run the commands in [justfile](./justfile) install [just](https://github.com/casey/just)
 
 ### start server for development : 
 
 start the DB in docker compose :
 
 ```bash
-just dc-start
+just dc-up
 ```
 
 start the server in watcher mode :

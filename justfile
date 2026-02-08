@@ -1,26 +1,29 @@
 set shell := ["bash", "-uc"]
 set dotenv-load
 
-alias dc-up := dc-start
-dc-start:
+alias dc-start := dc-up
+dc-up:
     docker compose up -d
 
-alias dc-down := dc-stop
-dc-stop:
-    docker compose down
+alias dc-stop := dc-down
+dc-down:
+    docker compose down --remove-orphans
 
 dc-reset:
-    docker compose down -v
-    just dc-start
+    docker compose down --remove-orphans -v
+    just dc-up
 
 alias ff := open
 open:
     firefox $APP_HOST
 
+alias watch-server := watch
 watch:
-    export $(grep -v '^#' .env | xargs) && \
-            cargo watch -w server -w shared  \
-            -x "run -p hfb-auth-server service"
+    export $(grep -v '^#' .env | xargs) && bacon run-long
+
+#    export $(grep -v '^#' .env | xargs) && \
+#            cargo watch -w server -w shared  \
+#            -x "run -p hfb-auth-server service"
 
 add-admin uuid:
     cargo run -p hfb-auth-server -- user-update --user {{uuid}} --role Admin
