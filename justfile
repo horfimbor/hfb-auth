@@ -3,7 +3,10 @@ set dotenv-load
 
 alias dc-start := dc-up
 dc-up *SRV :
-    docker compose up -d --build --force-recreate {{SRV}}
+    docker compose up -d --build --force-recreate --remove-orphans {{SRV}}
+
+dc-up-db:
+    just dc-up kurrentdb redis
 
 dc-up-log *SRV :
     just dc-up {{SRV}}
