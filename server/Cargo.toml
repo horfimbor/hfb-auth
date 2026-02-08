@@ -10,7 +10,7 @@ anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 dotenvy = "0.15"
 kurrentdb.workspace = true
-jsonwebtoken = "9.3"
+jsonwebtoken = "10.3"
 redis.workspace = true
 rocket = { version = "0.5", features = ["secrets"] }
 rocket_cors = "0.6"
@@ -23,8 +23,8 @@ argon2 = "0.5"
 url = { version = "2.5", features = ["serde"] }
 futures = "0.3"
 public-account-event = {workspace = true }
-signal-hook-tokio = { version = "0.3", features = ["futures-v0_3"] }
-signal-hook = "0.3"
+signal-hook-tokio = { version = "0.4", features = ["futures-v0_3"] }
+signal-hook = "0.4"
 chrono = { workspace = true }
 rand = { workspace = true }
 horfimbor-jwt = { workspace = true }
