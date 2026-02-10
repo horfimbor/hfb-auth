@@ -1236,8 +1236,6 @@ dependencies = [
 [[package]]
 name = "horfimbor-eventsource"
 version = "0.3.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "755e75e23bcbc4455db7d81dda31c4a5a2da5a1cc3e316576d7d1d823403eb3d"
 dependencies = [
  "async-trait",
  "futures",
@@ -1255,8 +1253,6 @@ dependencies = [
 [[package]]
 name = "horfimbor-eventsource-derive"
 version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5c79d85d81b96141a7eb4777985d1df8aaa82099d631e81f2c058918dda0625"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -1267,8 +1263,6 @@ dependencies = [
 [[package]]
 name = "horfimbor-jwt"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebc9103d39e98a00b2afaf25a8bd2232e8910d7b0897d4a02cdb1609e847d58d"
 dependencies = [
  "horfimbor-eventsource",
  "jsonwebtoken",
