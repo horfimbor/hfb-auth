@@ -16,9 +16,9 @@ serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
 kurrentdb = "1.0"
 redis = { version = "1.0", features = ["tokio-rustls-comp"] }
-uuid = { version = "1.8", features = ["v4", "v5"] }
+uuid = { version = "1.23", features = ["v4", "v5"] }
 chrono = { version = "0.4", features = ["serde"] }
-rand = "0.9"
+rand = "0.10"
 
 # TODO move out
 public-user-event = { path = "public-user-event", features = ["server"] }

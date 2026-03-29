@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 
 use horfimbor_eventsource::{Command, CommandName, Event, EventName, StateName, StateNamed};
 use horfimbor_eventsource::{Dto, State};
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::iter;
 use thiserror::Error;

@@ -6,7 +6,7 @@ use horfimbor_eventsource::{
     Command, CommandName, Dto, Event, EventName, State, StateName, StateNamed,
 };
 use public_account_event::PubAccountEvent;
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 

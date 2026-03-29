@@ -5,7 +5,7 @@ alias dc-start := dc-up
 dc-up *SRV :
     docker compose up -d --build --force-recreate --remove-orphans {{SRV}}
 
-dc-up-db:
+dc-db:
     just dc-up kurrentdb redis
 
 dc-up-log *SRV :
@@ -35,9 +35,8 @@ reset-password uuid new_password:
 
 precommit:
     cargo fmt
-    cargo clippy -- -D clippy::expect_used -D clippy::panic -D clippy::unwrap_used
     cargo test
-
+    cargo clippy -- -D clippy::expect_used -D clippy::panic -D clippy::unwrap_used -D warnings
 
 deploy-local:
     eval $(minikube docker-env) && \
