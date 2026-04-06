@@ -13,7 +13,7 @@ use hfb_auth_shared::account::AccountCommand;
 use hfb_auth_shared::application::ApplicationState;
 use hfb_auth_shared::user::UserCommand;
 use hfb_auth_shared::{AUTH_ACCOUNT_STREAM, AUTH_APPLICATION_STREAM};
-use horfimbor_eventsource::model_key::ModelKey;
+use horfimbor_eventsource::model_key::{ModelKey, ModelKeyError};
 use horfimbor_eventsource::repository::Repository;
 use horfimbor_eventsource::State as HorfimborState;
 use horfimbor_jwt::builder::ClaimBuilder;
@@ -176,7 +176,7 @@ pub async fn authorize_form(
         let account_id: ModelKey = authorize
             .account
             .try_into()
-            .map_err(|e: uuid::Error| other_error_page!(e))?;
+            .map_err(|e: ModelKeyError| other_error_page!(e))?;
 
         if user_model.state().has_account(app_key, &account_id) {
             let model = repository_account
