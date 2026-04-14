@@ -1390,6 +1390,7 @@ version = "0.2.0"
 dependencies = [
  "horfimbor-eventsource",
  "jsonwebtoken",
+ "rocket",
  "serde",
  "thiserror",
  "uuid",

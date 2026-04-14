@@ -92,6 +92,7 @@ pub async fn authorize(
             application_name: application.state().name(),
             accounts: accounts,
             csrf: csrf.value(),
+            is_admin: user.state().is_admin()
         },
     ))
 }
@@ -113,6 +114,7 @@ pub async fn authorize_guest(
 
 #[derive(FromForm, Debug)]
 pub struct Authorize<'r> {
+    is_admin: bool,
     account: &'r str,
     new_account: &'r str,
     csrf: &'r str,
@@ -146,7 +148,8 @@ pub async fn authorize_form(
         .await
         .map_err(|e| other_error_page!(e))?;
 
-    let one_time = if authorize.account.is_empty() && !authorize.new_account.is_empty() {
+    let account_id: ModelKey = if authorize.account.is_empty() && !authorize.new_account.is_empty()
+    {
         let new_account_key = ModelKey::new(AUTH_ACCOUNT_STREAM, Uuid::new_v4());
 
         let model = repository_account
@@ -171,7 +174,7 @@ pub async fn authorize_form(
             })
             .map_err(|e| other_error_page!(e))?;
 
-        model.one_time_token(&new_account_key)
+        new_account_key
     } else if !authorize.account.is_empty() {
         let account_id: ModelKey = authorize
             .account
@@ -179,19 +182,24 @@ pub async fn authorize_form(
             .map_err(|e: ModelKeyError| other_error_page!(e))?;
 
         if user_model.state().has_account(app_key, &account_id) {
-            let model = repository_account
-                .add_command(&account_id, AccountCommand::NewOneTimeToken, None)
-                .await
-                .map_err(|e| other_error_page!(e))?;
-
-            model.one_time_token(&account_id)
+            account_id
         } else {
             return Err(other_error_page!("account not found for current user"));
         }
     } else {
         return Err(other_error_page!("no account nor new account"));
-    }
-    .map_err(|e| other_error_page!(e))?;
+    };
+
+    let is_admin = user_model.state().is_admin() && authorize.is_admin;
+
+    let model = repository_account
+        .add_command(&account_id, AccountCommand::NewOneTimeToken(is_admin), None)
+        .await
+        .map_err(|e| other_error_page!(e))?;
+
+    let one_time = model
+        .one_time_token(&account_id)
+        .map_err(|e| other_error_page!(e))?;
 
     Ok(Redirect::to(format!(
         "{}/auth?token={one_time}",
@@ -215,6 +223,8 @@ pub async fn single_use_token(
     let mut split = data.token.split('|');
     let key =
         ModelKey::try_from(split.next().unwrap_or_default()).map_err(|e| other_error_api!(e))?;
+
+    let is_admin = split.next().unwrap_or_default() == "1";
 
     let account = repository_account
         .get_model(&key)
@@ -245,7 +255,7 @@ pub async fn single_use_token(
         .await
         .map_err(|e| other_error_api!(e))?;
 
-    let host = base_host().map_err(|e| other_error_api!(e))?;
+    let auth_host = base_host().map_err(|e| other_error_api!(e))?;
 
     let user = repository_user
         .get_model(account.user_id())
@@ -254,13 +264,9 @@ pub async fn single_use_token(
 
     let user = user.state();
 
-    let mut cb = ClaimBuilder::new(3600, account.app_id().to_string(), host);
+    let mut cb = ClaimBuilder::new(3600, account.app_id().to_string(), auth_host);
 
-    let role = if user.is_admin() {
-        Role::Admin
-    } else {
-        Role::User
-    };
+    let role = if is_admin { Role::Admin } else { Role::User };
 
     cb.set_account(
         account.user_id().clone(),
@@ -276,14 +282,4 @@ pub async fn single_use_token(
     let token = cb.build(&jwt_secret_key).map_err(|e| other_error_api!(e))?;
 
     Ok(token)
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Claims {
-    aud: String, // Optional. Audience
-    exp: usize, // Required (validate_exp defaults to true in validation). Expiration time (as UTC timestamp)
-    iat: usize, // Optional. Issued at (as UTC timestamp)
-    iss: String, // Optional. Issuer
-    sub: String, // Optional. Subject (whom token refers to)
-    id: String,
 }

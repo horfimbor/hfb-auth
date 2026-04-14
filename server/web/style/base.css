@@ -42,8 +42,9 @@ section {
             font-size: 2em;
             color: var(--important-color);
             text-transform: uppercase;
-            font-family:  'Gloria', serif;
+            font-family: 'Gloria', serif;
         }
+
         h3 {
             font-size: 2em;
             color: var(--important-color);
@@ -59,6 +60,7 @@ section {
             a {
                 color: var(--important-color);
                 text-decoration: none;
+
                 &:nth-child(2) {
                     color: var(--important-color);
                     font-weight: 600;
@@ -71,7 +73,7 @@ section {
             display: flex;
             flex-direction: column;
             gap: 1rem;
-            
+
             .inputBox {
                 position: relative;
                 width: 100%;
@@ -92,22 +94,27 @@ section {
                         opacity: 0.6;
                     }
 
-                    &[type="radio"]{
+                    &[type="radio"] {
                         width: 10%;
                     }
+                    &:focus,
+                    &:valid,
+                    &:invalid {
+                        background-size: contain;
+                        background-repeat: no-repeat;
+                        background-position-x: right;
 
-                    background-size: 1rem;
-                    background-repeat: no-repeat;
-                    background-position: center right 0.5rem;
+                    }
 
                     &:focus,
-                    &:valid{
+                    &:valid {
                         color: var(--background-color);
                         background-color: var(--important-color);
                         background-image: url("/assets/logo/green-circle.png");
+
                     }
 
-                    &:invalid{
+                    &:invalid {
                         background-image: url("/assets/logo/red-cross.png");
                     }
 
@@ -144,16 +151,7 @@ section {
         }
 
     }
-    
-}
 
-
-.new_element_block{
-    display: none;
-}
-
-#new_element_radio:checked ~ .new_element_block{
-    display: block;
 }
 
 @media (max-width: 900px) {
