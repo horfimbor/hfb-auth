@@ -1,8 +1,9 @@
 use horfimbor_eventsource::horfimbor_eventsource_derive::{Command, Event, StateNamed};
+use std::fmt::{Display, Formatter};
 
 use horfimbor_eventsource::{Command, CommandName, Event, EventName, StateName, StateNamed};
 use horfimbor_eventsource::{Dto, State};
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::iter;
 use thiserror::Error;
@@ -113,7 +114,19 @@ impl Dto for ApplicationState {
 }
 
 #[derive(Error, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum AuthApplicationError {}
+pub enum AuthApplicationError {
+    ApplicationAlreadyExists,
+}
+
+impl Display for AuthApplicationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AuthApplicationError::ApplicationAlreadyExists => {
+                write!(f, "application already created")
+            }
+        }
+    }
+}
 
 impl State for ApplicationState {
     type Command = ApplicationCommand;
@@ -122,6 +135,10 @@ impl State for ApplicationState {
     fn try_command(&self, command: Self::Command) -> Result<Vec<Self::Event>, Self::Error> {
         match command {
             ApplicationCommand::Create { name, host } => {
+                if *self != Self::default() {
+                    return Err(AuthApplicationError::ApplicationAlreadyExists);
+                }
+
                 let key = ApplicationState::generate_key();
 
                 Ok(vec![ApplicationEvent::Private(

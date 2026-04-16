@@ -7,7 +7,7 @@
 ################################################################################
 # Create a stage for building the application.
 
-ARG RUST_VERSION=1.78.0
+ARG RUST_VERSION=1.89.0
 FROM rust:${RUST_VERSION}-slim-bookworm AS build
 WORKDIR /app
 
@@ -22,8 +22,10 @@ RUN apt update && apt install -y pkg-config ca-certificates libsasl2-dev libssl-
 # output directory before the cache mounted /app/target is unmounted.
 RUN --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
     --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
+    --mount=type=bind,source=public-account-event,target=public-account-event \
+    --mount=type=bind,source=public-user-event,target=public-user-event \
     --mount=type=bind,source=server,target=server \
-    --mount=type=bind,source=.sqlx,target=.sqlx \
+    --mount=type=bind,source=shared,target=shared \
     --mount=type=cache,target=/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
 <<EOF
@@ -69,17 +71,16 @@ RUN adduser \
     appuser
 USER appuser
 
-COPY migrations /app/migrations
-COPY server/templates /app/templates
-COPY server/web /app/web
+COPY server/templates /app/server/templates
+COPY server/web /app/server/web
 
 # Copy the executable from the "build" stage.
 COPY --from=build /bin/hfb-auth-server /bin/
 
 # Expose the port that the application listens on.
-EXPOSE 8000
+EXPOSE 7999
 
 WORKDIR /app
 
 # What the container should run when it is started.
-CMD ["/bin/hfb-auth-server", "--real-env"]
+CMD ["/bin/hfb-auth-server", "--real-env", "service"]

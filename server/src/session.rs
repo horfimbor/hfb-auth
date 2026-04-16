@@ -7,6 +7,7 @@ use futures::{FutureExt, TryFutureExt};
 use hfb_auth_shared::user::UserRole;
 use horfimbor_eventsource::model_key::ModelKey;
 use rand::Rng;
+use rand::RngExt;
 use rocket::http::{Cookie, CookieJar, SameSite};
 use serde::{Deserialize, Serialize};
 use std::ops::Add;

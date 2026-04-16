@@ -2,28 +2,30 @@ set shell := ["bash", "-uc"]
 set dotenv-load
 
 alias dc-start := dc-up
-dc-up:
-    docker compose up -d
+dc-up *SRV :
+    docker compose up -d --build --force-recreate --remove-orphans {{SRV}}
+
+dc-db:
+    just dc-up kurrentdb redis
+
+dc-up-log *SRV :
+    just dc-up {{SRV}}
+    docker compose logs --follow {{SRV}}
 
 alias dc-stop := dc-down
 dc-down:
     docker compose down --remove-orphans
 
 dc-reset:
-    docker compose down --remove-orphans -v
+    just dc-down
     just dc-up
 
 alias ff := open
 open:
     firefox $APP_HOST
 
-alias watch-server := watch
 watch:
     export $(grep -v '^#' .env | xargs) && bacon run-long
-
-#    export $(grep -v '^#' .env | xargs) && \
-#            cargo watch -w server -w shared  \
-#            -x "run -p hfb-auth-server service"
 
 add-admin uuid:
     cargo run -p hfb-auth-server -- user-update --user {{uuid}} --role Admin
@@ -33,9 +35,8 @@ reset-password uuid new_password:
 
 precommit:
     cargo fmt
-    cargo clippy -- -D clippy::expect_used -D clippy::panic -D clippy::unwrap_used
     cargo test
-
+    cargo clippy -- -D clippy::expect_used -D clippy::panic -D clippy::unwrap_used -D warnings
 
 deploy-local:
     eval $(minikube docker-env) && \

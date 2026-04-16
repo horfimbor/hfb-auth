@@ -13,7 +13,7 @@ use hfb_auth_shared::account::AccountCommand;
 use hfb_auth_shared::application::ApplicationState;
 use hfb_auth_shared::user::UserCommand;
 use hfb_auth_shared::{AUTH_ACCOUNT_STREAM, AUTH_APPLICATION_STREAM};
-use horfimbor_eventsource::model_key::ModelKey;
+use horfimbor_eventsource::model_key::{ModelKey, ModelKeyError};
 use horfimbor_eventsource::repository::Repository;
 use horfimbor_eventsource::State as HorfimborState;
 use horfimbor_jwt::builder::ClaimBuilder;
@@ -51,15 +51,12 @@ pub async fn authorize(
         .url()
         .context("cannot get redirect url from url")
         .map_err(|e| other_error_page!(e))?;
-    dbg!(&redirect);
 
     let application_id = ModelKey::new_uuid_v8(
         AUTH_APPLICATION_STREAM,
         AUTH_APPLICATION_UUID,
         redirect.as_ref(),
     );
-
-    dbg!(&application_id);
 
     let application = application_repository
         .get_model(&application_id)
@@ -82,8 +79,6 @@ pub async fn authorize(
         .await
         .map_err(|e| other_error_page!(e))?;
 
-    dbg!(user.state().accounts(&application_id));
-
     let accounts: Vec<(String, String)> = user
         .state()
         .accounts(&application_id)
@@ -97,6 +92,7 @@ pub async fn authorize(
             application_name: application.state().name(),
             accounts: accounts,
             csrf: csrf.value(),
+            is_admin: user.state().is_admin()
         },
     ))
 }
@@ -111,7 +107,6 @@ pub async fn authorize_guest(
     let redirect = format!("{}{}", base_host().map_err(|e| other_error_page!(e))?, uri);
     let url = Url::parse(&redirect).map_err(|e| other_error_page!(e))?;
     session.set_redirect_url(url);
-    dbg!(&session.redirect_url().to_string());
     set_session(cookies, session);
 
     Ok(Redirect::to(uri!("/login")))
@@ -119,6 +114,7 @@ pub async fn authorize_guest(
 
 #[derive(FromForm, Debug)]
 pub struct Authorize<'r> {
+    is_admin: bool,
     account: &'r str,
     new_account: &'r str,
     csrf: &'r str,
@@ -133,8 +129,6 @@ pub async fn authorize_form(
     repository_account: &State<AccountRepository>,
     user: User,
 ) -> Result<Redirect, ErrorPage> {
-    dbg!(&authorize);
-
     let mut session = get_session(cookies).map_err(|e| anyhow_error_page!(e))?;
     session
         .check_csrf(AUTHORIZE_CSRF, authorize.csrf)
@@ -154,7 +148,8 @@ pub async fn authorize_form(
         .await
         .map_err(|e| other_error_page!(e))?;
 
-    let one_time = if authorize.account.is_empty() && !authorize.new_account.is_empty() {
+    let account_id: ModelKey = if authorize.account.is_empty() && !authorize.new_account.is_empty()
+    {
         let new_account_key = ModelKey::new(AUTH_ACCOUNT_STREAM, Uuid::new_v4());
 
         let model = repository_account
@@ -179,29 +174,32 @@ pub async fn authorize_form(
             })
             .map_err(|e| other_error_page!(e))?;
 
-        dbg!(&model);
-
-        model.one_time_token(&new_account_key)
+        new_account_key
     } else if !authorize.account.is_empty() {
         let account_id: ModelKey = authorize
             .account
             .try_into()
-            .map_err(|e: uuid::Error| other_error_page!(e))?;
+            .map_err(|e: ModelKeyError| other_error_page!(e))?;
 
         if user_model.state().has_account(app_key, &account_id) {
-            let model = repository_account
-                .add_command(&account_id, AccountCommand::NewOneTimeToken, None)
-                .await
-                .map_err(|e| other_error_page!(e))?;
-
-            model.one_time_token(&account_id)
+            account_id
         } else {
             return Err(other_error_page!("account not found for current user"));
         }
     } else {
         return Err(other_error_page!("no account nor new account"));
-    }
-    .map_err(|e| other_error_page!(e))?;
+    };
+
+    let is_admin = user_model.state().is_admin() && authorize.is_admin;
+
+    let model = repository_account
+        .add_command(&account_id, AccountCommand::NewOneTimeToken(is_admin), None)
+        .await
+        .map_err(|e| other_error_page!(e))?;
+
+    let one_time = model
+        .one_time_token(&account_id)
+        .map_err(|e| other_error_page!(e))?;
 
     Ok(Redirect::to(format!(
         "{}/auth?token={one_time}",
@@ -222,18 +220,16 @@ pub async fn single_use_token(
     repository_user: &State<UserRepository>,
     repository_account: &State<AccountRepository>,
 ) -> Result<String, ErrorApi> {
-    dbg!(&data);
-
     let mut split = data.token.split('|');
     let key =
         ModelKey::try_from(split.next().unwrap_or_default()).map_err(|e| other_error_api!(e))?;
+
+    let is_admin = split.next().unwrap_or_default() == "1";
 
     let account = repository_account
         .get_model(&key)
         .await
         .map_err(|e| other_error_api!(e))?;
-
-    dbg!(&account.state());
 
     if account
         .state()
@@ -250,9 +246,6 @@ pub async fn single_use_token(
         .map_err(|e| other_error_api!(e))?;
     let application = application.state();
 
-    dbg!(&application);
-    dbg!(&data);
-
     if application.key() != data.app_key {
         return Err(other_error_api!("wrong application Key"));
     }
@@ -262,40 +255,31 @@ pub async fn single_use_token(
         .await
         .map_err(|e| other_error_api!(e))?;
 
-    dbg!(&account);
+    let auth_host = base_host().map_err(|e| other_error_api!(e))?;
 
-    let host = base_host().map_err(|e| other_error_api!(e))?;
+    let user = repository_user
+        .get_model(account.user_id())
+        .await
+        .map_err(|e| other_error_api!(e))?;
 
-    dbg!(&account.app_id().to_string());
-    dbg!(&host);
+    let user = user.state();
 
-    let mut cb = ClaimBuilder::new(3600, account.app_id().to_string(), host);
+    let mut cb = ClaimBuilder::new(3600, account.app_id().to_string(), auth_host);
+
+    let role = if is_admin { Role::Admin } else { Role::User };
 
     cb.set_account(
         account.user_id().clone(),
         key,
         account.name().to_string(),
-        Role::User,
+        role,
     );
 
-    let cookie_secret_key = env::var("JWT_SECRET_KEY")
+    let jwt_secret_key = env::var("JWT_SECRET_KEY")
         .context("JWT_SECRET_KEY must be provided")
         .map_err(|e| other_error_api!(e))?;
 
-    let token = cb
-        .build(&cookie_secret_key)
-        .map_err(|e| other_error_api!(e))?;
-    dbg!(&token);
+    let token = cb.build(&jwt_secret_key).map_err(|e| other_error_api!(e))?;
 
     Ok(token)
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Claims {
-    aud: String, // Optional. Audience
-    exp: usize, // Required (validate_exp defaults to true in validation). Expiration time (as UTC timestamp)
-    iat: usize, // Optional. Issued at (as UTC timestamp)
-    iss: String, // Optional. Issuer
-    sub: String, // Optional. Subject (whom token refers to)
-    id: String,
 }
